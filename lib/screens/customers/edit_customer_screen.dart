@@ -7,18 +7,13 @@ import '../../providers/customer_provider.dart';
 class EditCustomerScreen extends ConsumerStatefulWidget {
   final CustomerModel customer;
 
-  const EditCustomerScreen({
-    super.key,
-    required this.customer,
-  });
+  const EditCustomerScreen({super.key, required this.customer});
 
   @override
-  ConsumerState<EditCustomerScreen> createState() =>
-      _EditCustomerScreenState();
+  ConsumerState<EditCustomerScreen> createState() => _EditCustomerScreenState();
 }
 
-class _EditCustomerScreenState
-    extends ConsumerState<EditCustomerScreen> {
+class _EditCustomerScreenState extends ConsumerState<EditCustomerScreen> {
   final _formKey = GlobalKey<FormState>();
 
   late final TextEditingController _nameController;
@@ -32,17 +27,15 @@ class _EditCustomerScreenState
   void initState() {
     super.initState();
 
-    _nameController =
-        TextEditingController(text: widget.customer.name);
+    _nameController = TextEditingController(text: widget.customer.name);
 
-    _mobileController =
-        TextEditingController(text: widget.customer.mobile);
+    _mobileController = TextEditingController(text: widget.customer.mobile);
 
-    _emailController =
-        TextEditingController(text: widget.customer.email ?? '');
+    _emailController = TextEditingController(text: widget.customer.email ?? '');
 
-    _addressController =
-        TextEditingController(text: widget.customer.address ?? '');
+    _addressController = TextEditingController(
+      text: widget.customer.address ?? '',
+    );
   }
 
   @override
@@ -77,18 +70,14 @@ class _EditCustomerScreenState
     Navigator.pop(context);
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("Customer Updated Successfully"),
-      ),
+      const SnackBar(content: Text("Customer Updated Successfully")),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Edit Customer"),
-      ),
+      appBar: AppBar(title: const Text("Edit Customer")),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Form(
@@ -101,10 +90,9 @@ class _EditCustomerScreenState
                   labelText: "Customer Name",
                   border: OutlineInputBorder(),
                 ),
-                validator: (value) =>
-                    value == null || value.trim().isEmpty
-                        ? "Enter customer name"
-                        : null,
+                validator: (value) => value == null || value.trim().isEmpty
+                    ? "Enter customer name"
+                    : null,
               ),
               const SizedBox(height: 16),
               TextFormField(
@@ -114,10 +102,9 @@ class _EditCustomerScreenState
                   labelText: "Mobile Number",
                   border: OutlineInputBorder(),
                 ),
-                validator: (value) =>
-                    value == null || value.trim().length < 10
-                        ? "Enter valid mobile number"
-                        : null,
+                validator: (value) => value == null || value.trim().length < 10
+                    ? "Enter valid mobile number"
+                    : null,
               ),
               const SizedBox(height: 16),
               TextFormField(

@@ -1,11 +1,11 @@
 {
-    "name": "plottingbazar_crm",
-    "short_name": "plottingbazar_crm",
+    "name": "PlottingBazaar CRM",
+    "short_name": "PlottingBazaar",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#FFFFFF",
+    "theme_color": "#1976D2",
+    "description": "Manage property leads, plots, customers, bookings and follow-ups.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

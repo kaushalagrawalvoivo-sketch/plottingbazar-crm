@@ -5,8 +5,8 @@ import '../models/customer_model.dart';
 
 final customerProvider =
     StateNotifierProvider<CustomerNotifier, List<CustomerModel>>(
-  (ref) => CustomerNotifier(),
-);
+      (ref) => CustomerNotifier(),
+    );
 
 class CustomerNotifier extends StateNotifier<List<CustomerModel>> {
   CustomerNotifier() : super([]);

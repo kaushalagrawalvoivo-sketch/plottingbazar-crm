@@ -28,9 +28,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (emailController.text.trim().isEmpty ||
         passwordController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Please enter email and password"),
-        ),
+        const SnackBar(content: Text("Please enter email and password")),
       );
       return;
     }
@@ -49,22 +47,20 @@ class _LoginScreenState extends State<LoginScreen> {
 
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(
-          builder: (_) => const DashboardScreen(),
-        ),
+        MaterialPageRoute(builder: (_) => const DashboardScreen()),
       );
     } on AuthException catch (e) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
     } catch (e) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.toString())));
     }
 
     if (mounted) {
@@ -97,28 +93,20 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
             child: Column(
               children: [
-                Image.asset(
-                  "assets/images/logo.png",
-                  height: 90,
-                ),
+                Image.asset("assets/images/logo.png", height: 90),
 
                 const SizedBox(height: 20),
 
                 const Text(
                   "PlottingBazaar CRM",
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
                 ),
 
                 const SizedBox(height: 8),
 
                 const Text(
                   "Sign in to continue",
-                  style: TextStyle(
-                    color: Colors.grey,
-                  ),
+                  style: TextStyle(color: Colors.grey),
                 ),
 
                 const SizedBox(height: 35),
@@ -173,10 +161,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               color: Colors.white,
                             ),
                           )
-                        : const Text(
-                            "LOGIN",
-                            style: TextStyle(fontSize: 16),
-                          ),
+                        : const Text("LOGIN", style: TextStyle(fontSize: 16)),
                   ),
                 ),
               ],

@@ -53,18 +53,13 @@ class _LeadListScreenState extends ConsumerState<LeadListScreen> {
     }).toList();
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Lead Management"),
-        centerTitle: true,
-      ),
+      appBar: AppBar(title: const Text("Lead Management"), centerTitle: true),
 
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
           await Navigator.push(
             context,
-            MaterialPageRoute(
-              builder: (_) => const AddLeadScreen(),
-            ),
+            MaterialPageRoute(builder: (_) => const AddLeadScreen()),
           );
 
           ref.read(leadProvider.notifier).loadLeads();
@@ -140,9 +135,7 @@ class _LeadListScreenState extends ConsumerState<LeadListScreen> {
                             await Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) => EditLeadScreen(
-                                  lead: lead,
-                                ),
+                                builder: (_) => EditLeadScreen(lead: lead),
                               ),
                             );
 

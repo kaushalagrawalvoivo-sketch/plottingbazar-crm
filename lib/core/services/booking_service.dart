@@ -13,9 +13,7 @@ class BookingService {
           .select()
           .order('booking_date', ascending: false);
 
-      return (response as List)
-          .map((e) => BookingModel.fromJson(e))
-          .toList();
+      return (response as List).map((e) => BookingModel.fromJson(e)).toList();
     } catch (e) {
       debugPrint("GET BOOKINGS ERROR: $e");
       rethrow;
@@ -24,13 +22,21 @@ class BookingService {
 
   Future<void> addBooking(BookingModel booking) async {
     try {
+      final plot = await _db
+          .from('plots')
+          .select('status')
+          .eq('id', booking.plotId)
+          .single();
+
+      if (plot['status']?.toString().toLowerCase() != 'available') {
+        throw StateError('This plot is no longer available for booking.');
+      }
+
       await _db.from('bookings').insert(booking.toJson());
 
       await _db
           .from('plots')
-          .update({
-            'status': 'Booked',
-          })
+          .update({'status': 'Booked'})
           .eq('id', booking.plotId);
 
       debugPrint("Booking Added Successfully");
@@ -40,16 +46,40 @@ class BookingService {
     }
   }
 
-  Future<void> updateBooking(BookingModel booking) async {
+  Future<void> updateBooking(
+    BookingModel booking, {
+    required String previousPlotId,
+  }) async {
     try {
       if (booking.id == null) {
         throw Exception("Booking ID is null");
       }
 
+      if (previousPlotId != booking.plotId) {
+        final plot = await _db
+            .from('plots')
+            .select('status')
+            .eq('id', booking.plotId)
+            .single();
+
+        if (plot['status']?.toString().toLowerCase() != 'available') {
+          throw StateError('The selected plot is no longer available.');
+        }
+      }
+
+      await _db.from('bookings').update(booking.toJson()).eq('id', booking.id!);
+
+      if (previousPlotId != booking.plotId) {
+        await _db
+            .from('plots')
+            .update({'status': 'Available'})
+            .eq('id', previousPlotId);
+      }
+
       await _db
-          .from('bookings')
-          .update(booking.toJson())
-          .eq('id', booking.id!);
+          .from('plots')
+          .update({'status': 'Booked'})
+          .eq('id', booking.plotId);
 
       debugPrint("Booking Updated Successfully");
     } catch (e) {
@@ -58,22 +88,11 @@ class BookingService {
     }
   }
 
-  Future<void> deleteBooking(
-    String bookingId,
-    String plotId,
-  ) async {
+  Future<void> deleteBooking(String bookingId, String plotId) async {
     try {
-      await _db
-          .from('bookings')
-          .delete()
-          .eq('id', bookingId);
+      await _db.from('bookings').delete().eq('id', bookingId);
 
-      await _db
-          .from('plots')
-          .update({
-            'status': 'Available',
-          })
-          .eq('id', plotId);
+      await _db.from('plots').update({'status': 'Available'}).eq('id', plotId);
 
       debugPrint("Booking Deleted Successfully");
     } catch (e) {

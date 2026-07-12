@@ -21,9 +21,7 @@ class _SplashScreenState extends State<SplashScreen> {
 
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(
-          builder: (_) => const LoginScreen(),
-        ),
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
       );
     });
   }
@@ -33,10 +31,7 @@ class _SplashScreenState extends State<SplashScreen> {
     return const Scaffold(
       backgroundColor: Colors.white,
       body: Center(
-        child: Image(
-          image: AssetImage('assets/images/logo.png'),
-          width: 220,
-        ),
+        child: Image(image: AssetImage('assets/images/logo.png'), width: 220),
       ),
     );
   }

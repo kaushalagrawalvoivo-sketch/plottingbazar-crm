@@ -15,18 +15,13 @@ import '../../providers/site_provider.dart';
 class EditBookingScreen extends ConsumerStatefulWidget {
   final BookingModel booking;
 
-  const EditBookingScreen({
-    super.key,
-    required this.booking,
-  });
+  const EditBookingScreen({super.key, required this.booking});
 
   @override
-  ConsumerState<EditBookingScreen> createState() =>
-      _EditBookingScreenState();
+  ConsumerState<EditBookingScreen> createState() => _EditBookingScreenState();
 }
 
-class _EditBookingScreenState
-    extends ConsumerState<EditBookingScreen> {
+class _EditBookingScreenState extends ConsumerState<EditBookingScreen> {
   final _formKey = GlobalKey<FormState>();
 
   late TextEditingController _salePriceController;
@@ -75,7 +70,9 @@ class _EditBookingScreenState
     _bookingAmountController.dispose();
     _discountController.dispose();
     super.dispose();
-  }  @override
+  }
+
+  @override
   Widget build(BuildContext context) {
     final customers = ref.watch(customerProvider);
     final sites = ref.watch(siteProvider);
@@ -85,18 +82,22 @@ class _EditBookingScreenState
 
     final plots = _siteId == null
         ? <PlotModel>[]
-        : plotNotifier.getPlotsBySite(_siteId!);
+        : plotNotifier
+              .getPlotsBySite(_siteId!)
+              .where(
+                (plot) =>
+                    plot.status.toLowerCase() == 'available' ||
+                    plot.id == widget.booking.plotId,
+              )
+              .toList();
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Edit Booking"),
-      ),
+      appBar: AppBar(title: const Text("Edit Booking")),
       body: Form(
         key: _formKey,
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-
             DropdownButtonFormField<String>(
               initialValue: _customerId,
               decoration: const InputDecoration(
@@ -105,10 +106,7 @@ class _EditBookingScreenState
               ),
               items: customers
                   .map(
-                    (e) => DropdownMenuItem(
-                      value: e.id,
-                      child: Text(e.name),
-                    ),
+                    (e) => DropdownMenuItem(value: e.id, child: Text(e.name)),
                   )
                   .toList(),
               onChanged: (v) {
@@ -116,8 +114,7 @@ class _EditBookingScreenState
                   _customerId = v;
                 });
               },
-              validator: (v) =>
-                  v == null ? "Select Customer" : null,
+              validator: (v) => v == null ? "Select Customer" : null,
             ),
 
             const SizedBox(height: 16),
@@ -130,10 +127,7 @@ class _EditBookingScreenState
               ),
               items: sites
                   .map(
-                    (e) => DropdownMenuItem(
-                      value: e.id,
-                      child: Text(e.name),
-                    ),
+                    (e) => DropdownMenuItem(value: e.id, child: Text(e.name)),
                   )
                   .toList(),
               onChanged: (v) {
@@ -142,8 +136,7 @@ class _EditBookingScreenState
                   _plotId = null;
                 });
               },
-              validator: (v) =>
-                  v == null ? "Select Site" : null,
+              validator: (v) => v == null ? "Select Site" : null,
             ),
 
             const SizedBox(height: 16),
@@ -166,49 +159,61 @@ class _EditBookingScreenState
                 setState(() {
                   _plotId = v;
 
-                  final plot = plots.firstWhere(
-                    (e) => e.id == v,
-                  );
+                  final plot = plots.firstWhere((e) => e.id == v);
 
-                  _salePriceController.text =
-                      plot.totalPrice.toStringAsFixed(0);
+                  _salePriceController.text = plot.totalPrice.toStringAsFixed(
+                    0,
+                  );
                 });
               },
-              validator: (v) =>
-                  v == null ? "Select Plot" : null,
+              validator: (v) => v == null ? "Select Plot" : null,
             ),
 
             const SizedBox(height: 16),
 
             TextFormField(
               controller: _salePriceController,
-              keyboardType: TextInputType.number,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               decoration: const InputDecoration(
                 labelText: "Sale Price",
                 border: OutlineInputBorder(),
               ),
+              validator: _positiveAmountValidator,
             ),
 
             const SizedBox(height: 16),
 
             TextFormField(
               controller: _bookingAmountController,
-              keyboardType: TextInputType.number,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               decoration: const InputDecoration(
                 labelText: "Booking Amount",
                 border: OutlineInputBorder(),
               ),
+              validator: _positiveAmountValidator,
             ),
 
             const SizedBox(height: 16),
 
             TextFormField(
               controller: _discountController,
-              keyboardType: TextInputType.number,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               decoration: const InputDecoration(
                 labelText: "Discount",
                 border: OutlineInputBorder(),
               ),
+              validator: (value) {
+                final discount = double.tryParse(value ?? '');
+                return discount == null || discount < 0
+                    ? 'Enter a valid discount'
+                    : null;
+              },
             ),
 
             const SizedBox(height: 16),
@@ -216,16 +221,12 @@ class _EditBookingScreenState
             ListTile(
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
-                side: BorderSide(
-                  color: Colors.grey.shade400,
-                ),
+                side: BorderSide(color: Colors.grey.shade400),
               ),
               title: const Text("Booking Date"),
-              subtitle: Text(
-                DateFormat("dd MMM yyyy")
-                    .format(_bookingDate),
-              ),
-              trailing: const Icon(Icons.calendar_today),              onTap: () async {
+              subtitle: Text(DateFormat("dd MMM yyyy").format(_bookingDate)),
+              trailing: const Icon(Icons.calendar_today),
+              onTap: () async {
                 final picked = await showDatePicker(
                   context: context,
                   initialDate: _bookingDate,
@@ -254,6 +255,25 @@ class _EditBookingScreenState
                           return;
                         }
 
+                        final salePrice = double.parse(
+                          _salePriceController.text,
+                        );
+                        final bookingAmount = double.parse(
+                          _bookingAmountController.text,
+                        );
+                        final discount = double.parse(_discountController.text);
+
+                        if (bookingAmount + discount > salePrice) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Booking amount and discount cannot exceed the sale price.',
+                              ),
+                            ),
+                          );
+                          return;
+                        }
+
                         setState(() {
                           _loading = true;
                         });
@@ -263,23 +283,15 @@ class _EditBookingScreenState
                             customerId: _customerId!,
                             siteId: _siteId!,
                             plotId: _plotId!,
-                            salePrice: double.tryParse(
-                                  _salePriceController.text,
-                                ) ??
-                                0,
-                            bookingAmount: double.tryParse(
-                                  _bookingAmountController.text,
-                                ) ??
-                                0,
-                            discount: double.tryParse(
-                                  _discountController.text,
-                                ) ??
-                                0,
+                            salePrice: salePrice,
+                            bookingAmount: bookingAmount,
+                            discount: discount,
                             bookingDate: _bookingDate,
                           );
 
                           await bookingNotifier.updateBooking(
                             updatedBooking,
+                            previousPlotId: widget.booking.plotId,
                           );
 
                           if (!mounted) return;
@@ -289,11 +301,7 @@ class _EditBookingScreenState
                           if (!mounted) return;
 
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                "Update Failed : $e",
-                              ),
-                            ),
+                            SnackBar(content: Text("Update Failed : $e")),
                           );
                         } finally {
                           if (mounted) {
@@ -319,5 +327,10 @@ class _EditBookingScreenState
         ),
       ),
     );
+  }
+
+  String? _positiveAmountValidator(String? value) {
+    final amount = double.tryParse(value ?? '');
+    return amount == null || amount <= 0 ? 'Enter an amount above zero' : null;
   }
 }

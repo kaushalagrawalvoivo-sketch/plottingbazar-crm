@@ -11,9 +11,7 @@ class CustomerService {
         .select()
         .order('created_at', ascending: false);
 
-    return (response as List)
-        .map((e) => CustomerModel.fromJson(e))
-        .toList();
+    return (response as List).map((e) => CustomerModel.fromJson(e)).toList();
   }
 
   Future<void> addCustomer(CustomerModel customer) async {
@@ -30,10 +28,7 @@ class CustomerService {
   }
 
   Future<void> deleteCustomer(String id) async {
-    await _db
-        .from('customers')
-        .delete()
-        .eq('id', id);
+    await _db.from('customers').delete().eq('id', id);
   }
 
   Future<CustomerModel?> getCustomerById(String id) async {

@@ -8,12 +8,10 @@ class AddCustomerScreen extends ConsumerStatefulWidget {
   const AddCustomerScreen({super.key});
 
   @override
-  ConsumerState<AddCustomerScreen> createState() =>
-      _AddCustomerScreenState();
+  ConsumerState<AddCustomerScreen> createState() => _AddCustomerScreenState();
 }
 
-class _AddCustomerScreenState
-    extends ConsumerState<AddCustomerScreen> {
+class _AddCustomerScreenState extends ConsumerState<AddCustomerScreen> {
   final _formKey = GlobalKey<FormState>();
 
   final _nameController = TextEditingController();
@@ -54,9 +52,7 @@ class _AddCustomerScreenState
       Navigator.pop(context);
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Customer Added Successfully"),
-        ),
+        const SnackBar(content: Text("Customer Added Successfully")),
       );
     }
 
@@ -66,9 +62,7 @@ class _AddCustomerScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Add Customer"),
-      ),
+      appBar: AppBar(title: const Text("Add Customer")),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Form(
@@ -81,10 +75,9 @@ class _AddCustomerScreenState
                   labelText: "Customer Name",
                   border: OutlineInputBorder(),
                 ),
-                validator: (value) =>
-                    value == null || value.trim().isEmpty
-                        ? "Enter customer name"
-                        : null,
+                validator: (value) => value == null || value.trim().isEmpty
+                    ? "Enter customer name"
+                    : null,
               ),
               const SizedBox(height: 16),
               TextFormField(
@@ -94,10 +87,9 @@ class _AddCustomerScreenState
                   labelText: "Mobile Number",
                   border: OutlineInputBorder(),
                 ),
-                validator: (value) =>
-                    value == null || value.trim().length < 10
-                        ? "Enter valid mobile number"
-                        : null,
+                validator: (value) => value == null || value.trim().length < 10
+                    ? "Enter valid mobile number"
+                    : null,
               ),
               const SizedBox(height: 16),
               TextFormField(

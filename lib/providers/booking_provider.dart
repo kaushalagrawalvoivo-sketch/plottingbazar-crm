@@ -5,8 +5,8 @@ import '../models/booking_model.dart';
 
 final bookingProvider =
     StateNotifierProvider<BookingNotifier, List<BookingModel>>(
-  (ref) => BookingNotifier(),
-);
+      (ref) => BookingNotifier(),
+    );
 
 class BookingNotifier extends StateNotifier<List<BookingModel>> {
   BookingNotifier() : super([]);
@@ -24,8 +24,11 @@ class BookingNotifier extends StateNotifier<List<BookingModel>> {
     await loadBookings();
   }
 
-  Future<void> updateBooking(BookingModel booking) async {
-    await _service.updateBooking(booking);
+  Future<void> updateBooking(
+    BookingModel booking, {
+    required String previousPlotId,
+  }) async {
+    await _service.updateBooking(booking, previousPlotId: previousPlotId);
     await loadBookings();
   }
 
@@ -33,10 +36,7 @@ class BookingNotifier extends StateNotifier<List<BookingModel>> {
     required String bookingId,
     required String plotId,
   }) async {
-    await _service.deleteBooking(
-      bookingId,
-      plotId,
-    );
+    await _service.deleteBooking(bookingId, plotId);
 
     await loadBookings();
   }
@@ -55,15 +55,12 @@ class BookingNotifier extends StateNotifier<List<BookingModel>> {
 
   int totalBookings() => state.length;
 
-  double totalSaleValue() =>
-      state.fold(0.0, (sum, e) => sum + e.salePrice);
+  double totalSaleValue() => state.fold(0.0, (sum, e) => sum + e.salePrice);
 
   double totalBookingAmount() =>
       state.fold(0.0, (sum, e) => sum + e.bookingAmount);
 
-  double totalDiscount() =>
-      state.fold(0.0, (sum, e) => sum + e.discount);
+  double totalDiscount() => state.fold(0.0, (sum, e) => sum + e.discount);
 
-  double totalBalance() =>
-      state.fold(0.0, (sum, e) => sum + e.balance);
+  double totalBalance() => state.fold(0.0, (sum, e) => sum + e.balance);
 }

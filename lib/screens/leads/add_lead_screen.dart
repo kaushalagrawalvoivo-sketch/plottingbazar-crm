@@ -63,19 +63,15 @@ class _AddLeadScreenState extends ConsumerState<AddLeadScreen> {
 
     Navigator.pop(context);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("Lead Added Successfully"),
-      ),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text("Lead Added Successfully")));
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Add Lead"),
-      ),
+      appBar: AppBar(title: const Text("Add Lead")),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Form(
@@ -88,8 +84,9 @@ class _AddLeadScreenState extends ConsumerState<AddLeadScreen> {
                   labelText: "Customer Name",
                   border: OutlineInputBorder(),
                 ),
-                validator: (v) =>
-                    v == null || v.trim().isEmpty ? "Enter customer name" : null,
+                validator: (v) => v == null || v.trim().isEmpty
+                    ? "Enter customer name"
+                    : null,
               ),
 
               const SizedBox(height: 16),
@@ -127,8 +124,14 @@ class _AddLeadScreenState extends ConsumerState<AddLeadScreen> {
                 ),
                 items: const [
                   DropdownMenuItem(value: "New", child: Text("New")),
-                  DropdownMenuItem(value: "Follow-up", child: Text("Follow-up")),
-                  DropdownMenuItem(value: "Qualified", child: Text("Qualified")),
+                  DropdownMenuItem(
+                    value: "Follow-up",
+                    child: Text("Follow-up"),
+                  ),
+                  DropdownMenuItem(
+                    value: "Qualified",
+                    child: Text("Qualified"),
+                  ),
                   DropdownMenuItem(value: "Booked", child: Text("Booked")),
                   DropdownMenuItem(value: "Lost", child: Text("Lost")),
                 ],

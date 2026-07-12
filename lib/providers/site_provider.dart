@@ -7,8 +7,9 @@ final siteServiceProvider = Provider<SiteService>((ref) {
   return SiteService();
 });
 
-final siteProvider =
-    StateNotifierProvider<SiteNotifier, List<SiteModel>>((ref) {
+final siteProvider = StateNotifierProvider<SiteNotifier, List<SiteModel>>((
+  ref,
+) {
   return SiteNotifier(ref.read(siteServiceProvider));
 });
 

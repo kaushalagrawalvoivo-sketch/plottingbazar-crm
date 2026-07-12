@@ -4,18 +4,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/customer_provider.dart';
 import '../../models/customer_model.dart';
 import 'add_customer_screen.dart';
+import 'customer_details_screen.dart';
 import 'edit_customer_screen.dart';
 
 class CustomerListScreen extends ConsumerStatefulWidget {
   const CustomerListScreen({super.key});
 
   @override
-  ConsumerState<CustomerListScreen> createState() =>
-      _CustomerListScreenState();
+  ConsumerState<CustomerListScreen> createState() => _CustomerListScreenState();
 }
 
-class _CustomerListScreenState
-    extends ConsumerState<CustomerListScreen> {
+class _CustomerListScreenState extends ConsumerState<CustomerListScreen> {
   String _search = "";
 
   @override
@@ -33,22 +32,16 @@ class _CustomerListScreenState
 
     final notifier = ref.read(customerProvider.notifier);
 
-    final list = _search.isEmpty
-        ? customers
-        : notifier.search(_search);
+    final list = _search.isEmpty ? customers : notifier.search(_search);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Customers"),
-      ),
+      appBar: AppBar(title: const Text("Customers")),
       floatingActionButton: FloatingActionButton(
         child: const Icon(Icons.add),
         onPressed: () async {
           await Navigator.push(
             context,
-            MaterialPageRoute(
-              builder: (_) => const AddCustomerScreen(),
-            ),
+            MaterialPageRoute(builder: (_) => const AddCustomerScreen()),
           );
 
           notifier.refresh();
@@ -75,9 +68,7 @@ class _CustomerListScreenState
             ),
             Expanded(
               child: list.isEmpty
-                  ? const Center(
-                      child: Text("No Customers Found"),
-                    )
+                  ? const Center(child: Text("No Customers Found"))
                   : ListView.builder(
                       itemCount: list.length,
                       itemBuilder: (context, index) {
@@ -94,14 +85,22 @@ class _CustomerListScreenState
                             ),
                             title: Text(customer.name),
                             subtitle: Text(customer.mobile),
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      CustomerDetailsScreen(customer: customer),
+                                ),
+                              );
+                            },
                             trailing: PopupMenuButton<String>(
                               onSelected: (value) async {
                                 if (value == "edit") {
                                   await Navigator.push(
                                     context,
                                     MaterialPageRoute(
-                                      builder: (_) =>
-                                          EditCustomerScreen(
+                                      builder: (_) => EditCustomerScreen(
                                         customer: customer,
                                       ),
                                     ),
@@ -111,9 +110,7 @@ class _CustomerListScreenState
                                 }
 
                                 if (value == "delete") {
-                                  await notifier.deleteCustomer(
-                                    customer.id!,
-                                  );
+                                  await notifier.deleteCustomer(customer.id!);
                                 }
                               },
                               itemBuilder: (_) => const [

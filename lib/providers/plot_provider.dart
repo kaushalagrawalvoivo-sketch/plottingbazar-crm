@@ -3,8 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/services/plot_service.dart';
 import '../models/plot_model.dart';
 
-final plotProvider =
-    StateNotifierProvider<PlotNotifier, List<PlotModel>>(
+final plotProvider = StateNotifierProvider<PlotNotifier, List<PlotModel>>(
   (ref) => PlotNotifier(),
 );
 
@@ -40,10 +39,7 @@ class PlotNotifier extends StateNotifier<List<PlotModel>> {
     required String id,
     required String status,
   }) async {
-    await _service.updateStatus(
-      id: id,
-      status: status,
-    );
+    await _service.updateStatus(id: id, status: status);
     await loadPlots();
   }
 
@@ -55,8 +51,7 @@ class PlotNotifier extends StateNotifier<List<PlotModel>> {
   /// Only available plots
   List<PlotModel> getAvailablePlotsBySite(String siteId) {
     return state.where((e) {
-      return e.siteId == siteId &&
-          e.status.toLowerCase() == "available";
+      return e.siteId == siteId && e.status.toLowerCase() == "available";
     }).toList();
   }
 
@@ -82,19 +77,13 @@ class PlotNotifier extends StateNotifier<List<PlotModel>> {
 
   int totalPlots() => state.length;
 
-  int availablePlots() =>
-      state.where((e) => e.status == "Available").length;
+  int availablePlots() => state.where((e) => e.status == "Available").length;
 
-  int bookedPlots() =>
-      state.where((e) => e.status == "Booked").length;
+  int bookedPlots() => state.where((e) => e.status == "Booked").length;
 
-  int holdPlots() =>
-      state.where((e) => e.status == "Hold").length;
+  int holdPlots() => state.where((e) => e.status == "Hold").length;
 
   double totalInventoryValue() {
-    return state.fold(
-      0.0,
-      (sum, plot) => sum + plot.totalPrice,
-    );
+    return state.fold(0.0, (sum, plot) => sum + plot.totalPrice);
   }
 }

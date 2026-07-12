@@ -41,17 +41,13 @@ class _SiteListScreenState extends ConsumerState<SiteListScreen> {
     }).toList();
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Sites"),
-      ),
+      appBar: AppBar(title: const Text("Sites")),
       floatingActionButton: FloatingActionButton(
         child: const Icon(Icons.add),
         onPressed: () async {
           await Navigator.push(
             context,
-            MaterialPageRoute(
-              builder: (_) => const AddSiteScreen(),
-            ),
+            MaterialPageRoute(builder: (_) => const AddSiteScreen()),
           );
 
           await ref.read(siteProvider.notifier).refresh();
@@ -75,12 +71,9 @@ class _SiteListScreenState extends ConsumerState<SiteListScreen> {
           ),
           Expanded(
             child: RefreshIndicator(
-              onRefresh: () =>
-                  ref.read(siteProvider.notifier).refresh(),
+              onRefresh: () => ref.read(siteProvider.notifier).refresh(),
               child: filtered.isEmpty
-                  ? const Center(
-                      child: Text("No Sites Found"),
-                    )
+                  ? const Center(child: Text("No Sites Found"))
                   : ListView.builder(
                       padding: const EdgeInsets.all(12),
                       itemCount: filtered.length,
@@ -101,8 +94,7 @@ class _SiteListScreenState extends ConsumerState<SiteListScreen> {
                             ),
                             title: Text(site.name),
                             subtitle: Column(
-                              crossAxisAlignment:
-                                  CrossAxisAlignment.start,
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(site.location),
                                 Text(
@@ -111,10 +103,7 @@ class _SiteListScreenState extends ConsumerState<SiteListScreen> {
                               ],
                             ),
                             trailing: IconButton(
-                              icon: const Icon(
-                                Icons.delete,
-                                color: Colors.red,
-                              ),
+                              icon: const Icon(Icons.delete, color: Colors.red),
                               onPressed: () async {
                                 if (site.id == null) return;
 

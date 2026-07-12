@@ -17,28 +17,24 @@ class AddBookingScreen extends ConsumerStatefulWidget {
   const AddBookingScreen({super.key});
 
   @override
-  ConsumerState<AddBookingScreen> createState() =>
-      _AddBookingScreenState();
+  ConsumerState<AddBookingScreen> createState() => _AddBookingScreenState();
 }
 
-class _AddBookingScreenState
-    extends ConsumerState<AddBookingScreen> {
+class _AddBookingScreenState extends ConsumerState<AddBookingScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  final _bookingAmountController =
-      TextEditingController();
+  final _bookingAmountController = TextEditingController();
 
-  final _salePriceController =
-      TextEditingController();
+  final _salePriceController = TextEditingController();
 
-  final _discountController =
-      TextEditingController(text: "0");
+  final _discountController = TextEditingController(text: "0");
 
   CustomerModel? _customer;
   SiteModel? _site;
   PlotModel? _plot;
 
   DateTime _bookingDate = DateTime.now();
+  bool _saving = false;
 
   @override
   void initState() {
@@ -61,25 +57,25 @@ class _AddBookingScreenState
 
   @override
   Widget build(BuildContext context) {
-    final customers = ref.watch(customerProvider);
-    final sites = ref.watch(siteProvider);
+    final customers = ref
+        .watch(customerProvider)
+        .where((customer) => customer.isActive && customer.id != null)
+        .toList();
+    final sites = ref
+        .watch(siteProvider)
+        .where((site) => site.isActive && site.id != null)
+        .toList();
 
-    final plotNotifier =
-        ref.read(plotProvider.notifier);
+    final plotNotifier = ref.read(plotProvider.notifier);
 
-    final bookingNotifier =
-        ref.read(bookingProvider.notifier);
+    final bookingNotifier = ref.read(bookingProvider.notifier);
 
     final plots = _site == null
         ? <PlotModel>[]
-        : plotNotifier.getAvailablePlotsBySite(
-            _site!.id!,
-          );
+        : plotNotifier.getAvailablePlotsBySite(_site!.id!);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Add Booking"),
-      ),
+      appBar: AppBar(title: const Text("Add Booking")),
       body: Form(
         key: _formKey,
         child: ListView(
@@ -92,20 +88,14 @@ class _AddBookingScreenState
                 border: OutlineInputBorder(),
               ),
               items: customers
-                  .map(
-                    (e) => DropdownMenuItem(
-                      value: e,
-                      child: Text(e.name),
-                    ),
-                  )
+                  .map((e) => DropdownMenuItem(value: e, child: Text(e.name)))
                   .toList(),
               onChanged: (value) {
                 setState(() {
                   _customer = value;
                 });
               },
-              validator: (value) =>
-                  value == null ? "Select Customer" : null,
+              validator: (value) => value == null ? "Select Customer" : null,
             ),
 
             const SizedBox(height: 16),
@@ -117,12 +107,7 @@ class _AddBookingScreenState
                 border: OutlineInputBorder(),
               ),
               items: sites
-                  .map(
-                    (e) => DropdownMenuItem(
-                      value: e,
-                      child: Text(e.name),
-                    ),
-                  )
+                  .map((e) => DropdownMenuItem(value: e, child: Text(e.name)))
                   .toList(),
               onChanged: (value) {
                 setState(() {
@@ -131,8 +116,7 @@ class _AddBookingScreenState
                   _salePriceController.clear();
                 });
               },
-              validator: (value) =>
-                  value == null ? "Select Site" : null,
+              validator: (value) => value == null ? "Select Site" : null,
             ),
 
             const SizedBox(height: 16),
@@ -147,8 +131,7 @@ class _AddBookingScreenState
                   .map(
                     (e) => DropdownMenuItem(
                       value: e,
-                      child: Text(
-                          "${e.block}-${e.plotNo}"),
+                      child: Text("${e.block}-${e.plotNo}"),
                     ),
                   )
                   .toList(),
@@ -157,60 +140,62 @@ class _AddBookingScreenState
                   _plot = value;
 
                   if (value != null) {
-                    _salePriceController.text =
-                        value.totalPrice
-                            .toStringAsFixed(0);
+                    _salePriceController.text = value.totalPrice
+                        .toStringAsFixed(0);
                   }
                 });
               },
-              validator: (value) =>
-                  value == null ? "Select Plot" : null,
+              validator: (value) => value == null ? "Select Plot" : null,
             ),
 
-            const SizedBox(height: 16),            TextFormField(
+            const SizedBox(height: 16),
+
+            TextFormField(
               controller: _salePriceController,
-              keyboardType: TextInputType.number,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               decoration: const InputDecoration(
                 labelText: "Sale Price",
                 border: OutlineInputBorder(),
                 prefixText: "₹ ",
               ),
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return "Enter Sale Price";
-                }
-                return null;
-              },
+              validator: _positiveAmountValidator,
             ),
 
             const SizedBox(height: 16),
 
             TextFormField(
               controller: _bookingAmountController,
-              keyboardType: TextInputType.number,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               decoration: const InputDecoration(
                 labelText: "Booking Amount",
                 border: OutlineInputBorder(),
                 prefixText: "₹ ",
               ),
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return "Enter Booking Amount";
-                }
-                return null;
-              },
+              validator: _positiveAmountValidator,
             ),
 
             const SizedBox(height: 16),
 
             TextFormField(
               controller: _discountController,
-              keyboardType: TextInputType.number,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               decoration: const InputDecoration(
                 labelText: "Discount",
                 border: OutlineInputBorder(),
                 prefixText: "₹ ",
               ),
+              validator: (value) {
+                final discount = double.tryParse(value ?? '');
+                return discount == null || discount < 0
+                    ? "Enter a valid discount"
+                    : null;
+              },
             ),
 
             const SizedBox(height: 16),
@@ -219,9 +204,7 @@ class _AddBookingScreenState
               contentPadding: EdgeInsets.zero,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
-                side: BorderSide(
-                  color: Colors.grey.shade400,
-                ),
+                side: BorderSide(color: Colors.grey.shade400),
               ),
               title: const Text("Booking Date"),
               subtitle: Text(
@@ -249,40 +232,77 @@ class _AddBookingScreenState
             SizedBox(
               height: 55,
               child: FilledButton(
-                onPressed: () async {
-                  if (!_formKey.currentState!.validate()) {
-                    return;
-                  }
+                onPressed: _saving
+                    ? null
+                    : () async {
+                        if (!_formKey.currentState!.validate()) {
+                          return;
+                        }
 
-                  final booking = BookingModel(
-                    customerId: _customer!.id!,
-                    siteId: _site!.id!,
-                    plotId: _plot!.id!,
-                    bookingAmount: double.parse(
-                      _bookingAmountController.text,
-                    ),
-                    salePrice: double.parse(
-                      _salePriceController.text,
-                    ),
-                    discount: double.tryParse(
-                          _discountController.text,
-                        ) ??
-                        0,
-                    bookingDate: _bookingDate,
-                  );
+                        final salePrice = double.parse(
+                          _salePriceController.text,
+                        );
+                        final bookingAmount = double.parse(
+                          _bookingAmountController.text,
+                        );
+                        final discount = double.parse(_discountController.text);
 
-                  await bookingNotifier.addBooking(booking);
+                        if (bookingAmount + discount > salePrice) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Booking amount and discount cannot exceed the sale price.',
+                              ),
+                            ),
+                          );
+                          return;
+                        }
 
-                  if (!mounted) return;
+                        setState(() => _saving = true);
 
-                  Navigator.pop(context);
-                },
-                child: const Text("Save Booking"),
+                        try {
+                          final booking = BookingModel(
+                            customerId: _customer!.id!,
+                            siteId: _site!.id!,
+                            plotId: _plot!.id!,
+                            bookingAmount: bookingAmount,
+                            salePrice: salePrice,
+                            discount: discount,
+                            bookingDate: _bookingDate,
+                          );
+
+                          await bookingNotifier.addBooking(booking);
+
+                          if (!mounted) return;
+                          Navigator.pop(context);
+                        } catch (error) {
+                          if (!mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Could not save booking: $error'),
+                            ),
+                          );
+                        } finally {
+                          if (mounted) setState(() => _saving = false);
+                        }
+                      },
+                child: _saving
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Text("Save Booking"),
               ),
             ),
           ],
         ),
       ),
     );
+  }
+
+  String? _positiveAmountValidator(String? value) {
+    final amount = double.tryParse(value ?? '');
+    return amount == null || amount <= 0 ? 'Enter an amount above zero' : null;
   }
 }

@@ -10,14 +10,11 @@ class BookingListScreen extends ConsumerStatefulWidget {
   const BookingListScreen({super.key});
 
   @override
-  ConsumerState<BookingListScreen> createState() =>
-      _BookingListScreenState();
+  ConsumerState<BookingListScreen> createState() => _BookingListScreenState();
 }
 
-class _BookingListScreenState
-    extends ConsumerState<BookingListScreen> {
-  final TextEditingController _searchController =
-      TextEditingController();
+class _BookingListScreenState extends ConsumerState<BookingListScreen> {
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
@@ -38,16 +35,12 @@ class _BookingListScreenState
     final filtered = notifier.search(_searchController.text);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Bookings"),
-      ),
+      appBar: AppBar(title: const Text("Bookings")),
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
           await Navigator.push(
             context,
-            MaterialPageRoute(
-              builder: (_) => const AddBookingScreen(),
-            ),
+            MaterialPageRoute(builder: (_) => const AddBookingScreen()),
           );
 
           await notifier.refresh();
@@ -72,9 +65,7 @@ class _BookingListScreenState
             child: RefreshIndicator(
               onRefresh: notifier.refresh,
               child: filtered.isEmpty
-                  ? const Center(
-                      child: Text("No Bookings Found"),
-                    )
+                  ? const Center(child: Text("No Bookings Found"))
                   : ListView.builder(
                       itemCount: filtered.length,
                       itemBuilder: (context, index) {
@@ -100,8 +91,7 @@ class _BookingListScreenState
                                     Navigator.push(
                                       context,
                                       MaterialPageRoute(
-                                        builder: (_) =>
-                                            BookingDetailsScreen(
+                                        builder: (_) => BookingDetailsScreen(
                                           booking: booking,
                                         ),
                                       ),
@@ -113,9 +103,7 @@ class _BookingListScreenState
                                       context,
                                       MaterialPageRoute(
                                         builder: (_) =>
-                                            EditBookingScreen(
-                                          booking: booking,
-                                        ),
+                                            EditBookingScreen(booking: booking),
                                       ),
                                     );
                                     await notifier.refresh();

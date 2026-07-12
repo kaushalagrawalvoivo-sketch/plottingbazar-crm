@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/plot_model.dart';
 import '../../providers/plot_provider.dart';
+import '../../providers/site_provider.dart';
 
 class AddPlotScreen extends ConsumerStatefulWidget {
   const AddPlotScreen({super.key});
@@ -14,19 +15,24 @@ class AddPlotScreen extends ConsumerStatefulWidget {
 class _AddPlotScreenState extends ConsumerState<AddPlotScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  final _siteIdController = TextEditingController();
   final _blockController = TextEditingController();
   final _plotNoController = TextEditingController();
   final _areaController = TextEditingController();
   final _rateController = TextEditingController();
 
+  String? _siteId;
   String _facing = "East";
   bool _isCorner = false;
   bool _loading = false;
 
   @override
+  void initState() {
+    super.initState();
+    Future.microtask(() => ref.read(siteProvider.notifier).loadSites());
+  }
+
+  @override
   void dispose() {
-    _siteIdController.dispose();
     _blockController.dispose();
     _plotNoController.dispose();
     _areaController.dispose();
@@ -39,49 +45,62 @@ class _AddPlotScreenState extends ConsumerState<AddPlotScreen> {
 
     setState(() => _loading = true);
 
-    final plot = PlotModel(
-      siteId: _siteIdController.text.trim(),
-      block: _blockController.text.trim(),
-      plotNo: _plotNoController.text.trim(),
-      area: double.parse(_areaController.text),
-      rate: double.parse(_rateController.text),
-      facing: _facing,
-      isCorner: _isCorner,
-    );
+    try {
+      final plot = PlotModel(
+        siteId: _siteId!,
+        block: _blockController.text.trim(),
+        plotNo: _plotNoController.text.trim(),
+        area: double.parse(_areaController.text),
+        rate: double.parse(_rateController.text),
+        facing: _facing,
+        isCorner: _isCorner,
+      );
 
-    await ref.read(plotProvider.notifier).addPlot(plot);
+      await ref.read(plotProvider.notifier).addPlot(plot);
 
-    if (!mounted) return;
-
-    Navigator.pop(context);
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("Plot Added Successfully"),
-      ),
-    );
+      if (!mounted) return;
+      Navigator.pop(context);
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not save plot: $error')));
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final sites = ref
+        .watch(siteProvider)
+        .where((site) => site.isActive && site.id != null)
+        .toList();
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Add Plot"),
-      ),
+      appBar: AppBar(title: const Text("Add Plot")),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Form(
           key: _formKey,
           child: Column(
             children: [
-              TextFormField(
-                controller: _siteIdController,
+              DropdownButtonFormField<String>(
+                initialValue: _siteId,
                 decoration: const InputDecoration(
-                  labelText: "Site ID",
+                  labelText: "Site",
                   border: OutlineInputBorder(),
                 ),
-                validator: (v) =>
-                    v == null || v.isEmpty ? "Required" : null,
+                items: sites
+                    .map(
+                      (site) => DropdownMenuItem(
+                        value: site.id,
+                        child: Text(site.name),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (value) => setState(() => _siteId = value),
+                validator: (value) => value == null ? "Select a site" : null,
               ),
               const SizedBox(height: 16),
 
@@ -92,7 +111,7 @@ class _AddPlotScreenState extends ConsumerState<AddPlotScreen> {
                   border: OutlineInputBorder(),
                 ),
                 validator: (v) =>
-                    v == null || v.isEmpty ? "Required" : null,
+                    v == null || v.trim().isEmpty ? "Required" : null,
               ),
               const SizedBox(height: 16),
 
@@ -103,7 +122,7 @@ class _AddPlotScreenState extends ConsumerState<AddPlotScreen> {
                   border: OutlineInputBorder(),
                 ),
                 validator: (v) =>
-                    v == null || v.isEmpty ? "Required" : null,
+                    v == null || v.trim().isEmpty ? "Required" : null,
               ),
               const SizedBox(height: 16),
 
@@ -114,8 +133,12 @@ class _AddPlotScreenState extends ConsumerState<AddPlotScreen> {
                   labelText: "Area",
                   border: OutlineInputBorder(),
                 ),
-                validator: (v) =>
-                    v == null || v.isEmpty ? "Required" : null,
+                validator: (value) {
+                  final area = double.tryParse(value ?? '');
+                  return area == null || area <= 0
+                      ? "Enter a valid area"
+                      : null;
+                },
               ),
               const SizedBox(height: 16),
 
@@ -126,8 +149,12 @@ class _AddPlotScreenState extends ConsumerState<AddPlotScreen> {
                   labelText: "Rate Per Sq.Ft.",
                   border: OutlineInputBorder(),
                 ),
-                validator: (v) =>
-                    v == null || v.isEmpty ? "Required" : null,
+                validator: (value) {
+                  final rate = double.tryParse(value ?? '');
+                  return rate == null || rate <= 0
+                      ? "Enter a valid rate"
+                      : null;
+                },
               ),
               const SizedBox(height: 16),
 

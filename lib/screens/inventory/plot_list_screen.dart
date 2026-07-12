@@ -5,6 +5,7 @@ import '../../models/plot_model.dart';
 import '../../providers/plot_provider.dart';
 import 'add_plot_screen.dart';
 import 'edit_plot_screen.dart';
+import 'plot_details_screen.dart';
 
 class PlotListScreen extends ConsumerStatefulWidget {
   const PlotListScreen({super.key});
@@ -41,21 +42,16 @@ class _PlotListScreenState extends ConsumerState<PlotListScreen> {
     final plots = ref.watch(plotProvider);
     final notifier = ref.read(plotProvider.notifier);
 
-    final list =
-        _search.isEmpty ? plots : notifier.search(_search);
+    final list = _search.isEmpty ? plots : notifier.search(_search);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Plot Inventory"),
-      ),
+      appBar: AppBar(title: const Text("Plot Inventory")),
       floatingActionButton: FloatingActionButton(
         child: const Icon(Icons.add),
         onPressed: () async {
           await Navigator.push(
             context,
-            MaterialPageRoute(
-              builder: (_) => const AddPlotScreen(),
-            ),
+            MaterialPageRoute(builder: (_) => const AddPlotScreen()),
           );
 
           await notifier.refresh();
@@ -82,8 +78,7 @@ class _PlotListScreenState extends ConsumerState<PlotListScreen> {
             ),
 
             Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
               child: Row(
                 children: [
                   Expanded(
@@ -94,9 +89,7 @@ class _PlotListScreenState extends ConsumerState<PlotListScreen> {
                           children: [
                             const Text("Available"),
                             Text(
-                              notifier
-                                  .availablePlots()
-                                  .toString(),
+                              notifier.availablePlots().toString(),
                               style: const TextStyle(
                                 fontSize: 22,
                                 fontWeight: FontWeight.bold,
@@ -151,36 +144,37 @@ class _PlotListScreenState extends ConsumerState<PlotListScreen> {
 
             Expanded(
               child: list.isEmpty
-                  ? const Center(
-                      child: Text("No Plots Found"),
-                    )
+                  ? const Center(child: Text("No Plots Found"))
                   : ListView.builder(
                       itemCount: list.length,
                       itemBuilder: (context, index) {
                         final PlotModel plot = list[index];
 
                         return Card(
-                          margin:
-                              const EdgeInsets.symmetric(
+                          margin: const EdgeInsets.symmetric(
                             horizontal: 12,
                             vertical: 6,
                           ),
                           child: ListTile(
-                            title: Text(
-                              "Plot ${plot.plotNo}",
-                            ),
+                            title: Text("Plot ${plot.plotNo}"),
                             subtitle: Text(
                               "Block ${plot.block} • ${plot.area} Sq.Ft.",
                             ),
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => PlotDetailsScreen(plot: plot),
+                                ),
+                              );
+                            },
                             trailing: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Chip(
                                   label: Text(plot.status),
-                                  backgroundColor:
-                                      _statusColor(plot.status),
-                                  labelStyle:
-                                      const TextStyle(
+                                  backgroundColor: _statusColor(plot.status),
+                                  labelStyle: const TextStyle(
                                     color: Colors.white,
                                   ),
                                 ),
@@ -191,31 +185,24 @@ class _PlotListScreenState extends ConsumerState<PlotListScreen> {
                                         context,
                                         MaterialPageRoute(
                                           builder: (_) =>
-                                              EditPlotScreen(
-                                            plot: plot,
-                                          ),
+                                              EditPlotScreen(plot: plot),
                                         ),
                                       );
                                       await notifier.refresh();
                                     }
 
-                                    if (value ==
-                                        "delete") {
-                                      await notifier
-                                          .deletePlot(
-                                              plot.id!);
+                                    if (value == "delete") {
+                                      await notifier.deletePlot(plot.id!);
                                     }
                                   },
-                                  itemBuilder: (_) =>
-                                      const [
+                                  itemBuilder: (_) => const [
                                     PopupMenuItem(
                                       value: "edit",
                                       child: Text("Edit"),
                                     ),
                                     PopupMenuItem(
                                       value: "delete",
-                                      child:
-                                          Text("Delete"),
+                                      child: Text("Delete"),
                                     ),
                                   ],
                                 ),

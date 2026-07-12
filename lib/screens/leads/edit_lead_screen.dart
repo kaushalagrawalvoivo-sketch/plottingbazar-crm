@@ -7,10 +7,7 @@ import '../../providers/lead_provider.dart';
 class EditLeadScreen extends ConsumerStatefulWidget {
   final LeadModel lead;
 
-  const EditLeadScreen({
-    super.key,
-    required this.lead,
-  });
+  const EditLeadScreen({super.key, required this.lead});
 
   @override
   ConsumerState<EditLeadScreen> createState() => _EditLeadScreenState();
@@ -80,19 +77,15 @@ class _EditLeadScreenState extends ConsumerState<EditLeadScreen> {
 
     Navigator.pop(context, true);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("Lead Updated Successfully"),
-      ),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text("Lead Updated Successfully")));
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Edit Lead"),
-      ),
+      appBar: AppBar(title: const Text("Edit Lead")),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Form(
@@ -105,10 +98,9 @@ class _EditLeadScreenState extends ConsumerState<EditLeadScreen> {
                   labelText: "Customer Name",
                   border: OutlineInputBorder(),
                 ),
-                validator: (value) =>
-                    value == null || value.trim().isEmpty
-                        ? "Enter customer name"
-                        : null,
+                validator: (value) => value == null || value.trim().isEmpty
+                    ? "Enter customer name"
+                    : null,
               ),
 
               const SizedBox(height: 16),
@@ -120,10 +112,9 @@ class _EditLeadScreenState extends ConsumerState<EditLeadScreen> {
                   labelText: "Phone Number",
                   border: OutlineInputBorder(),
                 ),
-                validator: (value) =>
-                    value == null || value.trim().isEmpty
-                        ? "Enter phone number"
-                        : null,
+                validator: (value) => value == null || value.trim().isEmpty
+                    ? "Enter phone number"
+                    : null,
               ),
 
               const SizedBox(height: 16),
@@ -135,9 +126,7 @@ class _EditLeadScreenState extends ConsumerState<EditLeadScreen> {
                   border: OutlineInputBorder(),
                 ),
                 validator: (value) =>
-                    value == null || value.trim().isEmpty
-                        ? "Enter site"
-                        : null,
+                    value == null || value.trim().isEmpty ? "Enter site" : null,
               ),
 
               const SizedBox(height: 16),
@@ -150,8 +139,14 @@ class _EditLeadScreenState extends ConsumerState<EditLeadScreen> {
                 ),
                 items: const [
                   DropdownMenuItem(value: "New", child: Text("New")),
-                  DropdownMenuItem(value: "Follow-up", child: Text("Follow-up")),
-                  DropdownMenuItem(value: "Qualified", child: Text("Qualified")),
+                  DropdownMenuItem(
+                    value: "Follow-up",
+                    child: Text("Follow-up"),
+                  ),
+                  DropdownMenuItem(
+                    value: "Qualified",
+                    child: Text("Qualified"),
+                  ),
                   DropdownMenuItem(value: "Booked", child: Text("Booked")),
                   DropdownMenuItem(value: "Lost", child: Text("Lost")),
                 ],

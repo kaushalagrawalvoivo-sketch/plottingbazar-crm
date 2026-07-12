@@ -10,10 +10,7 @@ class PlottingBazaarApp extends StatelessWidget {
     return MaterialApp(
       title: 'PlottingBazaar CRM',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        colorSchemeSeed: Colors.blue,
-      ),
+      theme: ThemeData(useMaterial3: true, colorSchemeSeed: Colors.blue),
       home: const SplashScreen(),
     );
   }

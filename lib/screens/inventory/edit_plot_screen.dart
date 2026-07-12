@@ -3,14 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/plot_model.dart';
 import '../../providers/plot_provider.dart';
+import '../../providers/site_provider.dart';
 
 class EditPlotScreen extends ConsumerStatefulWidget {
   final PlotModel plot;
 
-  const EditPlotScreen({
-    super.key,
-    required this.plot,
-  });
+  const EditPlotScreen({super.key, required this.plot});
 
   @override
   ConsumerState<EditPlotScreen> createState() => _EditPlotScreenState();
@@ -19,12 +17,12 @@ class EditPlotScreen extends ConsumerStatefulWidget {
 class _EditPlotScreenState extends ConsumerState<EditPlotScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  late final TextEditingController _siteIdController;
   late final TextEditingController _blockController;
   late final TextEditingController _plotNoController;
   late final TextEditingController _areaController;
   late final TextEditingController _rateController;
 
+  late String _siteId;
   late String _facing;
   late bool _isCorner;
   late String _status;
@@ -35,29 +33,25 @@ class _EditPlotScreenState extends ConsumerState<EditPlotScreen> {
   void initState() {
     super.initState();
 
-    _siteIdController =
-        TextEditingController(text: widget.plot.siteId);
+    _siteId = widget.plot.siteId;
 
-    _blockController =
-        TextEditingController(text: widget.plot.block);
+    _blockController = TextEditingController(text: widget.plot.block);
 
-    _plotNoController =
-        TextEditingController(text: widget.plot.plotNo);
+    _plotNoController = TextEditingController(text: widget.plot.plotNo);
 
-    _areaController =
-        TextEditingController(text: widget.plot.area.toString());
+    _areaController = TextEditingController(text: widget.plot.area.toString());
 
-    _rateController =
-        TextEditingController(text: widget.plot.rate.toString());
+    _rateController = TextEditingController(text: widget.plot.rate.toString());
 
     _facing = widget.plot.facing;
     _isCorner = widget.plot.isCorner;
     _status = widget.plot.status;
+
+    Future.microtask(() => ref.read(siteProvider.notifier).loadSites());
   }
 
   @override
   void dispose() {
-    _siteIdController.dispose();
     _blockController.dispose();
     _plotNoController.dispose();
     _areaController.dispose();
@@ -70,50 +64,63 @@ class _EditPlotScreenState extends ConsumerState<EditPlotScreen> {
 
     setState(() => _loading = true);
 
-    final updatedPlot = widget.plot.copyWith(
-      siteId: _siteIdController.text.trim(),
-      block: _blockController.text.trim(),
-      plotNo: _plotNoController.text.trim(),
-      area: double.parse(_areaController.text),
-      rate: double.parse(_rateController.text),
-      facing: _facing,
-      isCorner: _isCorner,
-      status: _status,
-    );
+    try {
+      final updatedPlot = widget.plot.copyWith(
+        siteId: _siteId,
+        block: _blockController.text.trim(),
+        plotNo: _plotNoController.text.trim(),
+        area: double.parse(_areaController.text),
+        rate: double.parse(_rateController.text),
+        facing: _facing,
+        isCorner: _isCorner,
+        status: _status,
+      );
 
-    await ref.read(plotProvider.notifier).updatePlot(updatedPlot);
+      await ref.read(plotProvider.notifier).updatePlot(updatedPlot);
 
-    if (!mounted) return;
-
-    Navigator.pop(context);
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("Plot Updated Successfully"),
-      ),
-    );
+      if (!mounted) return;
+      Navigator.pop(context);
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not update plot: $error')));
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final sites = ref.watch(siteProvider);
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Edit Plot"),
-      ),
+      appBar: AppBar(title: const Text("Edit Plot")),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Form(
           key: _formKey,
           child: Column(
             children: [
-              TextFormField(
-                controller: _siteIdController,
+              DropdownButtonFormField<String>(
+                initialValue: _siteId,
                 decoration: const InputDecoration(
-                  labelText: "Site ID",
+                  labelText: "Site",
                   border: OutlineInputBorder(),
                 ),
-                validator: (v) =>
-                    v == null || v.isEmpty ? "Required" : null,
+                items: sites
+                    .where((site) => site.id != null)
+                    .map(
+                      (site) => DropdownMenuItem(
+                        value: site.id,
+                        child: Text(site.name),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (value) {
+                  if (value != null) setState(() => _siteId = value);
+                },
+                validator: (value) => value == null ? "Select a site" : null,
               ),
               const SizedBox(height: 16),
 
@@ -124,7 +131,7 @@ class _EditPlotScreenState extends ConsumerState<EditPlotScreen> {
                   border: OutlineInputBorder(),
                 ),
                 validator: (v) =>
-                    v == null || v.isEmpty ? "Required" : null,
+                    v == null || v.trim().isEmpty ? "Required" : null,
               ),
               const SizedBox(height: 16),
 
@@ -135,7 +142,7 @@ class _EditPlotScreenState extends ConsumerState<EditPlotScreen> {
                   border: OutlineInputBorder(),
                 ),
                 validator: (v) =>
-                    v == null || v.isEmpty ? "Required" : null,
+                    v == null || v.trim().isEmpty ? "Required" : null,
               ),
               const SizedBox(height: 16),
 
@@ -146,8 +153,12 @@ class _EditPlotScreenState extends ConsumerState<EditPlotScreen> {
                   labelText: "Area",
                   border: OutlineInputBorder(),
                 ),
-                validator: (v) =>
-                    v == null || v.isEmpty ? "Required" : null,
+                validator: (value) {
+                  final area = double.tryParse(value ?? '');
+                  return area == null || area <= 0
+                      ? "Enter a valid area"
+                      : null;
+                },
               ),
               const SizedBox(height: 16),
 
@@ -158,8 +169,12 @@ class _EditPlotScreenState extends ConsumerState<EditPlotScreen> {
                   labelText: "Rate Per Sq.Ft.",
                   border: OutlineInputBorder(),
                 ),
-                validator: (v) =>
-                    v == null || v.isEmpty ? "Required" : null,
+                validator: (value) {
+                  final rate = double.tryParse(value ?? '');
+                  return rate == null || rate <= 0
+                      ? "Enter a valid rate"
+                      : null;
+                },
               ),
               const SizedBox(height: 16),
 
@@ -192,14 +207,8 @@ class _EditPlotScreenState extends ConsumerState<EditPlotScreen> {
                     value: "Available",
                     child: Text("Available"),
                   ),
-                  DropdownMenuItem(
-                    value: "Booked",
-                    child: Text("Booked"),
-                  ),
-                  DropdownMenuItem(
-                    value: "Hold",
-                    child: Text("Hold"),
-                  ),
+                  DropdownMenuItem(value: "Booked", child: Text("Booked")),
+                  DropdownMenuItem(value: "Hold", child: Text("Hold")),
                 ],
                 onChanged: (value) {
                   setState(() => _status = value!);

@@ -11,9 +11,7 @@ class SiteService {
         .select()
         .order('created_at', ascending: false);
 
-    return (response as List)
-        .map((e) => SiteModel.fromJson(e))
-        .toList();
+    return (response as List).map((e) => SiteModel.fromJson(e)).toList();
   }
 
   Future<void> addSite(SiteModel site) async {
@@ -21,16 +19,10 @@ class SiteService {
   }
 
   Future<void> updateSite(SiteModel site) async {
-    await _db
-        .from('sites')
-        .update(site.toJson())
-        .eq('id', site.id!);
+    await _db.from('sites').update(site.toJson()).eq('id', site.id!);
   }
 
   Future<void> deleteSite(String id) async {
-    await _db
-        .from('sites')
-        .delete()
-        .eq('id', id);
+    await _db.from('sites').delete().eq('id', id);
   }
 }

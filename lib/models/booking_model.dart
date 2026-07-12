@@ -27,8 +27,7 @@ class BookingModel {
     this.createdAt,
   });
 
-  double get balance =>
-      salePrice - discount - bookingAmount;
+  double get balance => salePrice - discount - bookingAmount;
 
   factory BookingModel.fromJson(Map<String, dynamic> json) {
     return BookingModel(

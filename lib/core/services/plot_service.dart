@@ -13,9 +13,7 @@ class PlotService {
           .select()
           .order('created_at', ascending: false);
 
-      return (response as List)
-          .map((e) => PlotModel.fromJson(e))
-          .toList();
+      return (response as List).map((e) => PlotModel.fromJson(e)).toList();
     } catch (e) {
       debugPrint("GET PLOTS ERROR: $e");
       rethrow;
@@ -38,10 +36,7 @@ class PlotService {
         throw Exception("Plot ID is null");
       }
 
-      await _db
-          .from('plots')
-          .update(plot.toJson())
-          .eq('id', plot.id!);
+      await _db.from('plots').update(plot.toJson()).eq('id', plot.id!);
 
       debugPrint("Plot Updated Successfully");
     } catch (e) {
@@ -52,10 +47,7 @@ class PlotService {
 
   Future<void> deletePlot(String id) async {
     try {
-      await _db
-          .from('plots')
-          .delete()
-          .eq('id', id);
+      await _db.from('plots').delete().eq('id', id);
 
       debugPrint("Plot Deleted Successfully");
     } catch (e) {
@@ -86,10 +78,7 @@ class PlotService {
     required String status,
   }) async {
     try {
-      await _db
-          .from('plots')
-          .update({'status': status})
-          .eq('id', id);
+      await _db.from('plots').update({'status': status}).eq('id', id);
 
       debugPrint("Plot Status Updated");
     } catch (e) {
@@ -106,9 +95,7 @@ class PlotService {
           .eq('site_id', siteId)
           .order('plot_no');
 
-      return (response as List)
-          .map((e) => PlotModel.fromJson(e))
-          .toList();
+      return (response as List).map((e) => PlotModel.fromJson(e)).toList();
     } catch (e) {
       debugPrint("GET SITE PLOTS ERROR: $e");
       rethrow;

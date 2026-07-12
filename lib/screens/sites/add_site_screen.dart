@@ -40,8 +40,7 @@ class _AddSiteScreenState extends ConsumerState<AddSiteScreen> {
       final site = SiteModel(
         name: _nameController.text.trim(),
         location: _locationController.text.trim(),
-        pricePerSqft:
-            double.tryParse(_priceController.text.trim()) ?? 0,
+        pricePerSqft: double.tryParse(_priceController.text.trim()) ?? 0,
         description: _descriptionController.text.trim(),
         isActive: _isActive,
       );
@@ -52,11 +51,9 @@ class _AddSiteScreenState extends ConsumerState<AddSiteScreen> {
 
       Navigator.pop(context);
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Site Added Successfully"),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Site Added Successfully")));
     } finally {
       if (mounted) {
         setState(() => _loading = false);
@@ -67,9 +64,7 @@ class _AddSiteScreenState extends ConsumerState<AddSiteScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Add Site"),
-      ),
+      appBar: AppBar(title: const Text("Add Site")),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Form(
@@ -83,9 +78,7 @@ class _AddSiteScreenState extends ConsumerState<AddSiteScreen> {
                   border: OutlineInputBorder(),
                 ),
                 validator: (v) =>
-                    v == null || v.trim().isEmpty
-                        ? "Enter site name"
-                        : null,
+                    v == null || v.trim().isEmpty ? "Enter site name" : null,
               ),
 
               const SizedBox(height: 16),
@@ -97,24 +90,22 @@ class _AddSiteScreenState extends ConsumerState<AddSiteScreen> {
                   border: OutlineInputBorder(),
                 ),
                 validator: (v) =>
-                    v == null || v.trim().isEmpty
-                        ? "Enter location"
-                        : null,
+                    v == null || v.trim().isEmpty ? "Enter location" : null,
               ),
 
               const SizedBox(height: 16),
 
               TextFormField(
                 controller: _priceController,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 decoration: const InputDecoration(
                   labelText: "Price Per Sqft",
                   border: OutlineInputBorder(),
                 ),
                 validator: (v) =>
-                    v == null || v.trim().isEmpty
-                        ? "Enter price"
-                        : null,
+                    v == null || v.trim().isEmpty ? "Enter price" : null,
               ),
 
               const SizedBox(height: 16),
@@ -148,9 +139,7 @@ class _AddSiteScreenState extends ConsumerState<AddSiteScreen> {
                       ? const SizedBox(
                           height: 22,
                           width: 22,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                          ),
+                          child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : const Text("Save Site"),
                 ),

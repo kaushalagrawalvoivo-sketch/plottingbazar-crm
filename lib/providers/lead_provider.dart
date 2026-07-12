@@ -7,8 +7,9 @@ final leadServiceProvider = Provider<LeadService>((ref) {
   return LeadService();
 });
 
-final leadProvider =
-    StateNotifierProvider<LeadNotifier, List<LeadModel>>((ref) {
+final leadProvider = StateNotifierProvider<LeadNotifier, List<LeadModel>>((
+  ref,
+) {
   return LeadNotifier(ref.read(leadServiceProvider));
 });
 

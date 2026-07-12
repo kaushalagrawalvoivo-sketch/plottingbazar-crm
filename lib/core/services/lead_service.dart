@@ -13,9 +13,7 @@ class LeadService {
           .select()
           .order('created_at', ascending: false);
 
-      return (response as List)
-          .map((e) => LeadModel.fromJson(e))
-          .toList();
+      return (response as List).map((e) => LeadModel.fromJson(e)).toList();
     } catch (e) {
       debugPrint("GET ERROR: $e");
       rethrow;
@@ -55,10 +53,7 @@ class LeadService {
 
   Future<void> deleteLead(String id) async {
     try {
-      await _db
-          .from('leads')
-          .delete()
-          .eq('id', id);
+      await _db.from('leads').delete().eq('id', id);
 
       debugPrint("Lead Deleted Successfully");
     } catch (e) {
