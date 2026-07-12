@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../models/lead_model.dart';
@@ -16,7 +17,7 @@ class LeadService {
           .map((e) => LeadModel.fromJson(e))
           .toList();
     } catch (e) {
-      print("GET ERROR: $e");
+      debugPrint("GET ERROR: $e");
       rethrow;
     }
   }
@@ -25,18 +26,18 @@ class LeadService {
     try {
       await _db.from('leads').insert(lead.toJson());
 
-      print("Lead Added Successfully");
+      debugPrint("Lead Added Successfully");
     } catch (e) {
-      print("ADD ERROR: $e");
+      debugPrint("ADD ERROR: $e");
       rethrow;
     }
   }
 
   Future<void> updateLead(LeadModel lead) async {
     try {
-      print("========== UPDATE ==========");
-      print("Lead ID : ${lead.id}");
-      print("Lead Data : ${lead.toJson()}");
+      debugPrint("========== UPDATE ==========");
+      debugPrint("Lead ID : ${lead.id}");
+      debugPrint("Lead Data : ${lead.toJson()}");
 
       final response = await _db
           .from('leads')
@@ -44,10 +45,10 @@ class LeadService {
           .eq('id', lead.id!)
           .select();
 
-      print("UPDATE RESPONSE : $response");
-      print("Lead Updated Successfully");
+      debugPrint("UPDATE RESPONSE : $response");
+      debugPrint("Lead Updated Successfully");
     } catch (e) {
-      print("UPDATE ERROR : $e");
+      debugPrint("UPDATE ERROR : $e");
       rethrow;
     }
   }
@@ -59,9 +60,9 @@ class LeadService {
           .delete()
           .eq('id', id);
 
-      print("Lead Deleted Successfully");
+      debugPrint("Lead Deleted Successfully");
     } catch (e) {
-      print("DELETE ERROR : $e");
+      debugPrint("DELETE ERROR : $e");
       rethrow;
     }
   }

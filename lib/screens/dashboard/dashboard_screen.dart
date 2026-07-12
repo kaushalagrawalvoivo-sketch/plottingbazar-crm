@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../providers/lead_provider.dart';
+import '../bookings/booking_list_screen.dart';
 import '../leads/lead_list_screen.dart';
 import '../sites/site_list_screen.dart';
 
@@ -9,10 +10,12 @@ class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
 
   @override
-  ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
+  ConsumerState<DashboardScreen> createState() =>
+      _DashboardScreenState();
 }
 
-class _DashboardScreenState extends ConsumerState<DashboardScreen> {
+class _DashboardScreenState
+    extends ConsumerState<DashboardScreen> {
   @override
   void initState() {
     super.initState();
@@ -120,6 +123,24 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 },
               ),
             ),
+
+            const SizedBox(height: 16),
+
+            SizedBox(
+              height: 55,
+              child: FilledButton.icon(
+                icon: const Icon(Icons.assignment_turned_in),
+                label: const Text("Booking Management"),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const BookingListScreen(),
+                    ),
+                  );
+                },
+              ),
+            ),
           ],
         ),
       ),
@@ -138,7 +159,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         padding: const EdgeInsets.symmetric(vertical: 22),
         child: Column(
           children: [
-            Icon(icon, color: color, size: 34),
+            Icon(
+              icon,
+              color: color,
+              size: 34,
+            ),
             const SizedBox(height: 10),
             Text(
               value,
