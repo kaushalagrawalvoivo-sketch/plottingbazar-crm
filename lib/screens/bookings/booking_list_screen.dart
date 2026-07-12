@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../providers/booking_provider.dart';
+import '../../providers/plot_provider.dart';
+import '../../providers/customer_provider.dart';
 import 'add_booking_screen.dart';
 import 'booking_details_screen.dart';
 import 'edit_booking_screen.dart';
@@ -22,6 +24,8 @@ class _BookingListScreenState extends ConsumerState<BookingListScreen> {
 
     Future.microtask(() {
       ref.read(bookingProvider.notifier).loadBookings();
+      ref.read(plotProvider.notifier).loadPlots();
+      ref.read(customerProvider.notifier).loadCustomers();
     });
   }
 
@@ -29,6 +33,8 @@ class _BookingListScreenState extends ConsumerState<BookingListScreen> {
   Widget build(BuildContext context) {
     // Provider ko watch karo taaki UI refresh ho
     ref.watch(bookingProvider);
+    final plots = ref.watch(plotProvider);
+    final customers = ref.watch(customerProvider);
 
     final notifier = ref.read(bookingProvider.notifier);
 
@@ -71,6 +77,18 @@ class _BookingListScreenState extends ConsumerState<BookingListScreen> {
                       itemBuilder: (context, index) {
                         final booking = filtered[index];
 
+                        // Find Plot Name
+                        final plotList = plots.where((p) => p.id == booking.plotId);
+                        final plotName = plotList.isNotEmpty 
+                            ? "${plotList.first.block}-${plotList.first.plotNo}" 
+                            : "Unknown Plot";
+
+                        // Find Customer Name
+                        final customerList = customers.where((c) => c.id == booking.customerId);
+                        final customerName = customerList.isNotEmpty 
+                            ? customerList.first.name 
+                            : "Unknown Customer";
+
                         return Card(
                           margin: const EdgeInsets.symmetric(
                             horizontal: 12,
@@ -80,9 +98,9 @@ class _BookingListScreenState extends ConsumerState<BookingListScreen> {
                             leading: const CircleAvatar(
                               child: Icon(Icons.home_work),
                             ),
-                            title: Text("Plot : ${booking.plotId}"),
+                            title: Text("Plot : $plotName"),
                             subtitle: Text(
-                              "₹ ${booking.salePrice.toStringAsFixed(0)}",
+                              "$customerName  •  ₹ ${booking.salePrice.toStringAsFixed(0)}",
                             ),
                             trailing: PopupMenuButton<String>(
                               onSelected: (value) async {
