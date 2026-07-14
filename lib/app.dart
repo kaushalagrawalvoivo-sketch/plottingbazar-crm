@@ -1,17 +1,3 @@
 import 'package:flutter/material.dart';
-
 import 'screens/splash/splash_screen.dart';
-
-class PlottingBazaarApp extends StatelessWidget {
-  const PlottingBazaarApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'PlottingBazaar CRM',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(useMaterial3: true, colorSchemeSeed: Colors.blue),
-      home: const SplashScreen(),
-    );
-  }
-}
+class PlottingBazaarApp extends StatelessWidget { const PlottingBazaarApp({super.key}); @override Widget build(BuildContext context) => MaterialApp(title: 'PlottingBazaar CRM', debugShowCheckedModeBanner: false, theme: ThemeData(useMaterial3: true, colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xff4F46E5)), scaffoldBackgroundColor: const Color(0xffF8FAFC), appBarTheme: const AppBarTheme(backgroundColor: Color(0xffF8FAFC), surfaceTintColor: Colors.transparent), cardTheme: CardThemeData(elevation: 0, color: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: const BorderSide(color: Color(0xffEAECF0)))), inputDecorationTheme: InputDecorationTheme(filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xffD0D5DD)))),), home: const SplashScreen()); }
