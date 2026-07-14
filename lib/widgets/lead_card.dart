@@ -7,8 +7,19 @@ class LeadCard extends StatelessWidget {
   final LeadModel lead;
   final VoidCallback? onTap;
   final VoidCallback? onDelete;
+  final bool selectionMode;
+  final bool selected;
+  final ValueChanged<bool?>? onSelected;
 
-  const LeadCard({super.key, required this.lead, this.onTap, this.onDelete});
+  const LeadCard({
+    super.key,
+    required this.lead,
+    this.onTap,
+    this.onDelete,
+    this.selectionMode = false,
+    this.selected = false,
+    this.onSelected,
+  });
 
   Color get statusColor {
     switch (lead.status) {
@@ -41,6 +52,10 @@ class LeadCard extends StatelessWidget {
             children: [
               Row(
                 children: [
+                  if (selectionMode) ...[
+                    Checkbox(value: selected, onChanged: onSelected),
+                    const SizedBox(width: 4),
+                  ],
                   CircleAvatar(
                     backgroundColor: statusColor,
                     child: const Icon(Icons.person, color: Colors.white),
@@ -96,36 +111,39 @@ class LeadCard extends StatelessWidget {
                 ),
               ],
 
-              const SizedBox(height: 14),
-
-              Wrap(
-                alignment: WrapAlignment.end,
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  OutlinedButton.icon(
-                    onPressed: () => _call(context),
-                    icon: const Icon(Icons.call_outlined),
-                    label: const Text("Call"),
-                  ),
-                  OutlinedButton.icon(
-                    onPressed: () => _openWhatsApp(context),
-                    icon: const Icon(Icons.chat_outlined),
-                    label: const Text("WhatsApp"),
-                  ),
-                  OutlinedButton.icon(
-                    onPressed: onTap,
-                    icon: const Icon(Icons.edit),
-                    label: const Text("Edit"),
-                  ),
-                  FilledButton.icon(
-                    style: FilledButton.styleFrom(backgroundColor: Colors.red),
-                    onPressed: onDelete,
-                    icon: const Icon(Icons.delete),
-                    label: const Text("Delete"),
-                  ),
-                ],
-              ),
+              if (!selectionMode) ...[
+                const SizedBox(height: 14),
+                Wrap(
+                  alignment: WrapAlignment.end,
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: () => _call(context),
+                      icon: const Icon(Icons.call_outlined),
+                      label: const Text("Call"),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: () => _openWhatsApp(context),
+                      icon: const Icon(Icons.chat_outlined),
+                      label: const Text("WhatsApp"),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: onTap,
+                      icon: const Icon(Icons.edit),
+                      label: const Text("Edit"),
+                    ),
+                    FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: Colors.red,
+                      ),
+                      onPressed: onDelete,
+                      icon: const Icon(Icons.delete),
+                      label: const Text("Delete"),
+                    ),
+                  ],
+                ),
+              ],
             ],
           ),
         ),

@@ -18,6 +18,13 @@ drop policy if exists "Authenticated users can read profiles" on public.profiles
 create policy "Authenticated users can read profiles" on public.profiles
 for select to authenticated using (true);
 
+-- Administrators can change roles from the Manage users screen.
+drop policy if exists "Admins manage profiles" on public.profiles;
+create policy "Admins manage profiles" on public.profiles
+for update to authenticated
+using ((select role from public.profiles where id = auth.uid()) = 'admin')
+with check ((select role from public.profiles where id = auth.uid()) = 'admin');
+
 drop policy if exists "Admins manage all leads" on public.leads;
 create policy "Admins manage all leads" on public.leads
 for all to authenticated
