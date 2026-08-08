@@ -41,9 +41,7 @@ class ContactActionService {
     String? caption,
   }) async {
     if (files.isEmpty) return false;
-    final result = await SharePlus.instance.share(
-      ShareParams(files: files, text: caption),
-    );
+    final result = await Share.shareXFiles(files, text: caption);
     return result.status == ShareResultStatus.success ||
         result.status == ShareResultStatus.unavailable;
   }
