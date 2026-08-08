@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../models/customer_model.dart';
 import '../../providers/customer_provider.dart';
@@ -22,20 +23,44 @@ class _EditCustomerScreenState extends ConsumerState<EditCustomerScreen> {
   late final TextEditingController _addressController;
 
   bool _loading = false;
+  bool _isAdmin = false;
+  String? _assignedTo;
+  List<Map<String, dynamic>> _users = [];
 
   @override
   void initState() {
     super.initState();
 
     _nameController = TextEditingController(text: widget.customer.name);
-
     _mobileController = TextEditingController(text: widget.customer.mobile);
-
     _emailController = TextEditingController(text: widget.customer.email ?? '');
-
     _addressController = TextEditingController(
       text: widget.customer.address ?? '',
     );
+    _assignedTo = widget.customer.assignedTo;
+    _loadRoleAndUsers();
+  }
+
+  Future<void> _loadRoleAndUsers() async {
+    final db = Supabase.instance.client;
+    final userId = db.auth.currentUser?.id;
+    if (userId == null) return;
+    final profile = await db
+        .from('profiles')
+        .select('role')
+        .eq('id', userId)
+        .maybeSingle();
+    if (profile?['role'] != 'admin' || !mounted) return;
+    final users = await db
+        .from('profiles')
+        .select('id, full_name, email')
+        .order('full_name');
+    if (mounted) {
+      setState(() {
+        _isAdmin = true;
+        _users = List<Map<String, dynamic>>.from(users);
+      });
+    }
   }
 
   @override
@@ -61,6 +86,7 @@ class _EditCustomerScreenState extends ConsumerState<EditCustomerScreen> {
       address: _addressController.text.trim().isEmpty
           ? null
           : _addressController.text.trim(),
+      assignedTo: _assignedTo,
     );
 
     await ref.read(customerProvider.notifier).updateCustomer(updated);
@@ -124,6 +150,29 @@ class _EditCustomerScreenState extends ConsumerState<EditCustomerScreen> {
                   border: OutlineInputBorder(),
                 ),
               ),
+              if (_isAdmin) ...[
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  value: _assignedTo,
+                  decoration: const InputDecoration(
+                    labelText: "Assign to sales user",
+                    border: OutlineInputBorder(),
+                  ),
+                  items: _users
+                      .map(
+                        (u) => DropdownMenuItem(
+                          value: u['id'] as String,
+                          child: Text(
+                            (u['full_name'] as String?)?.isNotEmpty == true
+                                ? u['full_name'] as String
+                                : u['email'] as String,
+                          ),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (v) => setState(() => _assignedTo = v),
+                ),
+              ],
               const SizedBox(height: 30),
               SizedBox(
                 width: double.infinity,

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../providers/lead_provider.dart';
+import '../admin/activity_monitor_screen.dart';
 import '../auth/login_screen.dart';
 import '../bookings/booking_list_screen.dart';
 import '../customers/customer_list_screen.dart';
@@ -115,6 +116,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   'Manage users',
                   () => _open(const ManageUsersScreen()),
                 ),
+              if (_isAdmin)
+                _nav(
+                  Icons.monitor_heart_outlined,
+                  'Live activity monitor',
+                  () => _open(const ActivityMonitorScreen()),
+                ),
               const Divider(),
               _nav(Icons.logout, 'Logout', _logout),
             ],
@@ -166,6 +173,21 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   ),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => _open(const ManageUsersScreen()),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Card(
+                child: ListTile(
+                  leading: const CircleAvatar(
+                    backgroundColor: Colors.green,
+                    child: Icon(Icons.monitor_heart_outlined, color: Colors.white),
+                  ),
+                  title: const Text('Live activity monitor'),
+                  subtitle: const Text(
+                    'See every call, feedback and WhatsApp message in real time',
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => _open(const ActivityMonitorScreen()),
                 ),
               ),
             ],

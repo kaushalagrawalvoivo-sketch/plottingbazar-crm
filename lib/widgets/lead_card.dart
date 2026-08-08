@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/services/contact_action_service.dart';
 import '../models/lead_model.dart';
+import '../providers/lead_provider.dart';
 
-class LeadCard extends StatelessWidget {
+class LeadCard extends ConsumerWidget {
   final LeadModel lead;
   final VoidCallback? onTap;
   final VoidCallback? onDelete;
@@ -37,7 +39,7 @@ class LeadCard extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Card(
       elevation: 4,
       margin: const EdgeInsets.only(bottom: 12),
@@ -119,19 +121,19 @@ class LeadCard extends StatelessWidget {
                   runSpacing: 8,
                   children: [
                     OutlinedButton.icon(
-                      onPressed: () => _call(context),
+                      onPressed: () => _call(context, ref),
                       icon: const Icon(Icons.call_outlined),
                       label: const Text("Call"),
                     ),
                     OutlinedButton.icon(
-                      onPressed: () => _openWhatsApp(context),
+                      onPressed: () => _openWhatsApp(context, ref),
                       icon: const Icon(Icons.chat_outlined),
                       label: const Text("WhatsApp"),
                     ),
                     OutlinedButton.icon(
                       onPressed: onTap,
                       icon: const Icon(Icons.edit),
-                      label: const Text("Edit"),
+                      label: const Text("Details"),
                     ),
                     FilledButton.icon(
                       style: FilledButton.styleFrom(
@@ -151,20 +153,35 @@ class LeadCard extends StatelessWidget {
     );
   }
 
-  Future<void> _call(BuildContext context) async {
+  Future<void> _call(BuildContext context, WidgetRef ref) async {
     final opened = await ContactActionService.call(lead.phone);
+    if (opened && lead.id != null) {
+      ref.read(activityServiceProvider).log(
+            actionType: 'call_logged',
+            leadId: lead.id,
+            description:
+                '${lead.name}: call opened from list (open lead details to record the outcome)',
+          );
+    }
     if (!context.mounted || opened) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Could not open the phone app.')),
     );
   }
 
-  Future<void> _openWhatsApp(BuildContext context) async {
+  Future<void> _openWhatsApp(BuildContext context, WidgetRef ref) async {
     final opened = await ContactActionService.openWhatsApp(
       phone: lead.phone,
       name: lead.name,
       site: lead.site,
     );
+    if (opened && lead.id != null) {
+      ref.read(activityServiceProvider).log(
+            actionType: 'whatsapp_sent',
+            leadId: lead.id,
+            description: '${lead.name}: WhatsApp text message opened',
+          );
+    }
     if (!context.mounted || opened) return;
     ScaffoldMessenger.of(
       context,

@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/services/activity_service.dart';
 import '../core/services/customer_service.dart';
+import '../models/activity_log_model.dart';
 import '../models/customer_model.dart';
 
 final customerProvider =
@@ -12,6 +14,7 @@ class CustomerNotifier extends StateNotifier<List<CustomerModel>> {
   CustomerNotifier() : super([]);
 
   final CustomerService _service = CustomerService();
+  final ActivityService _activity = ActivityService();
 
   Future<void> loadCustomers() async {
     state = await _service.getCustomers();
@@ -23,6 +26,10 @@ class CustomerNotifier extends StateNotifier<List<CustomerModel>> {
 
   Future<void> addCustomer(CustomerModel customer) async {
     await _service.addCustomer(customer);
+    await _activity.log(
+      actionType: ActivityLogModel.customerCreated,
+      description: 'Added a new customer: ${customer.name}',
+    );
     await loadCustomers();
   }
 

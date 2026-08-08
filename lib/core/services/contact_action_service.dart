@@ -1,3 +1,4 @@
+import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 /// Opens the user's preferred phone or WhatsApp app without any paid API.
@@ -28,6 +29,23 @@ class ContactActionService {
     final url = Uri.https('wa.me', '/$number', {'text': message});
 
     return launchUrl(url, mode: LaunchMode.externalApplication);
+  }
+
+  /// Shares one or more picked files (image/video/audio/document) through
+  /// the device's native share sheet, so the user can pick WhatsApp and
+  /// attach real media -- something a plain wa.me link cannot do for free.
+  /// The recipient still has to be picked manually inside WhatsApp; that
+  /// last step is an OS/WhatsApp restriction with no free workaround.
+  static Future<bool> shareFiles({
+    required List<XFile> files,
+    String? caption,
+  }) async {
+    if (files.isEmpty) return false;
+    final result = await SharePlus.instance.share(
+      ShareParams(files: files, text: caption),
+    );
+    return result.status == ShareResultStatus.success ||
+        result.status == ShareResultStatus.unavailable;
   }
 
   static String _phoneForTel(String value) =>

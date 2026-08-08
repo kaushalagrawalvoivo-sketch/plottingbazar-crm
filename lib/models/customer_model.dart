@@ -6,6 +6,7 @@ class CustomerModel {
   final String? address;
   final String? siteId;
   final bool isActive;
+  final String? assignedTo;
   final DateTime? createdAt;
 
   CustomerModel({
@@ -16,6 +17,7 @@ class CustomerModel {
     this.address,
     this.siteId,
     this.isActive = true,
+    this.assignedTo,
     this.createdAt,
   });
 
@@ -28,6 +30,7 @@ class CustomerModel {
       address: json['address'],
       siteId: json['site_id']?.toString(),
       isActive: json['is_active'] ?? true,
+      assignedTo: json['assigned_to']?.toString(),
       createdAt: json['created_at'] != null
           ? DateTime.tryParse(json['created_at'].toString())
           : null,
@@ -42,6 +45,7 @@ class CustomerModel {
       'address': address,
       'site_id': siteId,
       'is_active': isActive,
+      'assigned_to': assignedTo,
     };
 
     if (id != null) {
@@ -59,6 +63,7 @@ class CustomerModel {
     String? address,
     String? siteId,
     bool? isActive,
+    String? assignedTo,
     DateTime? createdAt,
   }) {
     return CustomerModel(
@@ -69,6 +74,7 @@ class CustomerModel {
       address: address ?? this.address,
       siteId: siteId ?? this.siteId,
       isActive: isActive ?? this.isActive,
+      assignedTo: assignedTo ?? this.assignedTo,
       createdAt: createdAt ?? this.createdAt,
     );
   }
