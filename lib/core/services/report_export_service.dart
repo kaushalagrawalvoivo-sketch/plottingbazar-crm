@@ -49,13 +49,14 @@ class ReportExportService {
       ..._summaryRows(data),
       [],
       ['Leads'],
-      ['Name', 'Phone', 'Site', 'Status', 'Follow-up date', 'Created'],
+      ['Name', 'Phone', 'Site', 'Status', 'Source', 'Follow-up date', 'Created'],
       ...data.leads.map(
         (lead) => [
           lead.name,
           lead.phone,
           lead.site,
           lead.status,
+          lead.source ?? '',
           _date(lead.followUpDate),
           _date(lead.createdAt),
         ],

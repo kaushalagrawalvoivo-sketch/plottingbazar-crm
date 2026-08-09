@@ -106,9 +106,25 @@ class LeadCard extends ConsumerWidget {
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    const Icon(Icons.calendar_today, size: 18),
+                    Icon(
+                      lead.isFollowUpOverdue
+                          ? Icons.warning_amber_rounded
+                          : Icons.calendar_today,
+                      size: 18,
+                      color: lead.isFollowUpOverdue ? Colors.red : null,
+                    ),
                     const SizedBox(width: 8),
-                    Text(lead.followUpDate!.toString().split(' ').first),
+                    Text(
+                      lead.isFollowUpOverdue
+                          ? 'Overdue: ${lead.followUpDate!.toString().split(' ').first}'
+                          : lead.followUpDate!.toString().split(' ').first,
+                      style: lead.isFollowUpOverdue
+                          ? const TextStyle(
+                              color: Colors.red,
+                              fontWeight: FontWeight.bold,
+                            )
+                          : null,
+                    ),
                   ],
                 ),
               ],

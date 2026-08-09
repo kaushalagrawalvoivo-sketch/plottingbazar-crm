@@ -19,7 +19,7 @@
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="description" content="PlottingBazaar CRM for leads, plots, bookings and follow-ups.">
-  <meta name="theme-color" content="#1976D2">
+  <meta name="theme-color" content="#4F46E5">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
@@ -32,6 +32,48 @@
 
   <title>PlottingBazaar CRM</title>
   <link rel="manifest" href="manifest.json">
+
+  <!--
+    Capture the browser's install prompt ourselves instead of relying on
+    the browser's own (unreliable / inconsistently-timed) install popup.
+    This lets the app show its own always-visible "Install App" button
+    that works the moment the browser says installability criteria are
+    met, rather than waiting on Chrome's engagement heuristics.
+  -->
+  <script>
+    window.deferredInstallPrompt = null;
+    window.addEventListener('beforeinstallprompt', function (event) {
+      event.preventDefault();
+      window.deferredInstallPrompt = event;
+    });
+    window.addEventListener('appinstalled', function () {
+      window.deferredInstallPrompt = null;
+    });
+    window.isPwaInstallAvailable = function () {
+      return window.deferredInstallPrompt !== null;
+    };
+    window.isPwaInstalled = function () {
+      return window.matchMedia('(display-mode: standalone)').matches ||
+        window.navigator.standalone === true;
+    };
+    window.isIosSafari = function () {
+      var ua = window.navigator.userAgent;
+      var isIos = /iPad|iPhone|iPod/.test(ua);
+      var isSafari = /^((?!chrome|android).)*safari/i.test(ua);
+      return isIos && isSafari;
+    };
+    window.promptPwaInstall = function () {
+      if (!window.deferredInstallPrompt) {
+        return Promise.resolve('unavailable');
+      }
+      var promptEvent = window.deferredInstallPrompt;
+      window.deferredInstallPrompt = null;
+      promptEvent.prompt();
+      return promptEvent.userChoice.then(function (choice) {
+        return choice.outcome;
+      });
+    };
+  </script>
 </head>
 <body>
   <!--

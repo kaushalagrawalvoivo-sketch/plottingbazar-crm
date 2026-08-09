@@ -1,13 +1,17 @@
 {
+    "id": "/",
     "name": "PlottingBazaar CRM",
     "short_name": "PlottingBazaar",
     "start_url": ".",
+    "scope": "/",
     "display": "standalone",
+    "display_override": ["window-controls-overlay", "standalone"],
     "background_color": "#FFFFFF",
-    "theme_color": "#1976D2",
+    "theme_color": "#4F46E5",
     "description": "Manage property leads, plots, customers, bookings and follow-ups.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
+    "categories": ["business", "productivity"],
     "icons": [
         {
             "src": "icons/Icon-192.png",

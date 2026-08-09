@@ -43,6 +43,7 @@ class _EditLeadScreenState extends ConsumerState<EditLeadScreen> {
   late final TextEditingController _phone;
   late final TextEditingController _site;
   late String _status;
+  String? _source;
   bool _saving = false;
 
   final _callLogService = CallLogService();
@@ -61,6 +62,7 @@ class _EditLeadScreenState extends ConsumerState<EditLeadScreen> {
     _phone = TextEditingController(text: widget.lead.phone);
     _site = TextEditingController(text: widget.lead.site);
     _status = widget.lead.status;
+    _source = widget.lead.source;
     _loadHistory();
   }
 
@@ -121,6 +123,7 @@ class _EditLeadScreenState extends ConsumerState<EditLeadScreen> {
               phone: _phone.text.trim(),
               site: _site.text.trim(),
               status: _status,
+              source: _source,
             ),
             previousStatus: previousStatus,
           );
@@ -311,6 +314,7 @@ class _EditLeadScreenState extends ConsumerState<EditLeadScreen> {
                 phone: _phone.text.trim(),
                 site: _site.text.trim(),
                 status: _status,
+                source: _source,
                 followUpDate: _nextFollowUp,
               ),
             );
@@ -360,6 +364,15 @@ class _EditLeadScreenState extends ConsumerState<EditLeadScreen> {
                 .map((s) => DropdownMenuItem(value: s, child: Text(s)))
                 .toList(),
             onChanged: (v) => setState(() => _status = v!),
+          ),
+          const SizedBox(height: 14),
+          DropdownButtonFormField<String>(
+            value: _source,
+            decoration: const InputDecoration(labelText: 'Lead source'),
+            items: LeadModel.sources
+                .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+                .toList(),
+            onChanged: (v) => setState(() => _source = v),
           ),
           const SizedBox(height: 16),
           Row(

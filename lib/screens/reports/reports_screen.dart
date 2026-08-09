@@ -220,6 +220,23 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                   ),
                   const SizedBox(height: 12),
                   Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Leads by source',
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                          const SizedBox(height: 12),
+                          ..._sourceRows(leads),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Card(
                     child: ListTile(
                       leading: const Icon(Icons.location_city_outlined),
                       title: const Text('Active sites'),
@@ -346,6 +363,38 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
             Expanded(child: LinearProgressIndicator(value: count / maximum)),
             const SizedBox(width: 12),
             Text('$count'),
+          ],
+        ),
+      );
+    }).toList();
+  }
+
+  List<Widget> _sourceRows(List<LeadModel> leads) {
+    final counts = <String, int>{};
+    for (final lead in leads) {
+      final source = (lead.source == null || lead.source!.isEmpty)
+          ? 'Not set'
+          : lead.source!;
+      counts[source] = (counts[source] ?? 0) + 1;
+    }
+    if (counts.isEmpty) {
+      return [const Text('No leads yet.')];
+    }
+    final maximum = math.max(1, counts.values.reduce(math.max));
+    final entries = counts.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    return entries.map((entry) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: Row(
+          children: [
+            SizedBox(width: 90, child: Text(entry.key)),
+            Expanded(
+              child: LinearProgressIndicator(value: entry.value / maximum),
+            ),
+            const SizedBox(width: 12),
+            Text('${entry.value}'),
           ],
         ),
       );

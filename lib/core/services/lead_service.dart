@@ -23,6 +23,23 @@ class LeadService {
 
   Future<void> addLead(LeadModel lead) =>
       _db.from('leads').insert(lead.toJson());
+
+  /// Checks (via a security-definer RPC so RLS doesn't hide leads owned by
+  /// other employees) whether a phone number is already a lead somewhere in
+  /// the system, so the UI can warn before creating a duplicate -- the most
+  /// common way two employees end up calling the same person.
+  Future<Map<String, dynamic>?> checkDuplicatePhone(String phone) async {
+    final digits = phone.replaceAll(RegExp(r'\D'), '');
+    if (digits.length < 6) return null;
+    final rows = await _db.rpc(
+      'check_lead_phone_exists',
+      params: {'p_phone': digits},
+    );
+    final list = rows as List;
+    if (list.isEmpty) return null;
+    return Map<String, dynamic>.from(list.first);
+  }
+
   Future<void> importLeads(List<LeadModel> leads) async {
     if (leads.isEmpty) return;
     await _db.from('leads').insert(leads.map((lead) => lead.toJson()).toList());

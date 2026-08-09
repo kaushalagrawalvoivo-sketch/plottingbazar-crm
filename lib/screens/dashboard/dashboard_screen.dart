@@ -3,12 +3,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../providers/lead_provider.dart';
+import '../../widgets/pwa_install_banner.dart';
 import '../admin/activity_monitor_screen.dart';
+import '../admin/leaderboard_screen.dart';
 import '../auth/login_screen.dart';
 import '../bookings/booking_list_screen.dart';
 import '../customers/customer_list_screen.dart';
 import '../inventory/plot_list_screen.dart';
 import '../leads/lead_list_screen.dart';
+import '../profile/profile_screen.dart';
 import '../reminders/follow_up_reminders_screen.dart';
 import '../reports/reports_screen.dart';
 import '../sites/site_list_screen.dart';
@@ -122,7 +125,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   'Live activity monitor',
                   () => _open(const ActivityMonitorScreen()),
                 ),
+              if (_isAdmin)
+                _nav(
+                  Icons.leaderboard_outlined,
+                  'Employee performance',
+                  () => _open(const LeaderboardScreen()),
+                ),
               const Divider(),
+              _nav(Icons.person_outline, 'My profile', () => _open(const ProfileScreen())),
               _nav(Icons.logout, 'Logout', _logout),
             ],
           ),
@@ -133,6 +143,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         child: ListView(
           padding: const EdgeInsets.all(20),
           children: [
+            const PwaInstallBanner(),
             Text(
               'Sales overview',
               style: Theme.of(context).textTheme.headlineSmall,
@@ -157,6 +168,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   'Booked',
                   leads.where((lead) => lead.status == 'Booked').length,
                   Icons.home_work,
+                ),
+                _metric(
+                  'Overdue follow-ups',
+                  leads.where((lead) => lead.isFollowUpOverdue).length,
+                  Icons.warning_amber_rounded,
+                  color: Colors.red,
                 ),
               ],
             ),
@@ -188,6 +205,21 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   ),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => _open(const ActivityMonitorScreen()),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Card(
+                child: ListTile(
+                  leading: const CircleAvatar(
+                    backgroundColor: Colors.amber,
+                    child: Icon(Icons.leaderboard_outlined, color: Colors.white),
+                  ),
+                  title: const Text('Employee performance'),
+                  subtitle: const Text(
+                    'Calls made and leads converted, ranked by employee',
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => _open(const LeaderboardScreen()),
                 ),
               ),
             ],
@@ -226,24 +258,29 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       onTap();
     },
   );
-  Widget _metric(String title, int value, IconData icon) => SizedBox(
-    width: 170,
-    child: Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon),
-            const SizedBox(height: 10),
-            Text(
-              '$value',
-              style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
+  Widget _metric(String title, int value, IconData icon, {Color? color}) =>
+      SizedBox(
+        width: 170,
+        child: Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(icon, color: color),
+                const SizedBox(height: 10),
+                Text(
+                  '$value',
+                  style: TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.bold,
+                    color: color,
+                  ),
+                ),
+                Text(title),
+              ],
             ),
-            Text(title),
-          ],
+          ),
         ),
-      ),
-    ),
-  );
+      );
 }

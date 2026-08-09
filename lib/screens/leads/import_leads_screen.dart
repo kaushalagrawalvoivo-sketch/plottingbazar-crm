@@ -29,7 +29,7 @@ class _ImportLeadsScreenState extends ConsumerState<ImportLeadsScreen> {
         final row = line.split(',');
         final name = cell(row, 'name');
         if (name.isEmpty) continue;
-        parsed.add(LeadModel(name: name, phone: cell(row, 'phone'), site: cell(row, 'site'), status: cell(row, 'status').isEmpty ? 'New' : cell(row, 'status'), assignedTo: cell(row, 'assigned_to').isEmpty ? null : cell(row, 'assigned_to'), followUpDate: DateTime.tryParse(cell(row, 'follow_up_date'))));
+        parsed.add(LeadModel(name: name, phone: cell(row, 'phone'), site: cell(row, 'site'), status: cell(row, 'status').isEmpty ? 'New' : cell(row, 'status'), source: cell(row, 'source').isEmpty ? null : cell(row, 'source'), assignedTo: cell(row, 'assigned_to').isEmpty ? null : cell(row, 'assigned_to'), followUpDate: DateTime.tryParse(cell(row, 'follow_up_date'))));
       }
       setState(() => _leads = parsed);
     } catch (error) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('CSV error: $error'))); }
@@ -42,5 +42,5 @@ class _ImportLeadsScreenState extends ConsumerState<ImportLeadsScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(appBar: AppBar(title: const Text('Import leads')), body: Padding(padding: const EdgeInsets.all(20), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [const Text('CSV columns: name, phone, site. Optional: status, follow_up_date, assigned_to.'), const SizedBox(height: 16), OutlinedButton.icon(onPressed: _pickFile, icon: const Icon(Icons.upload_file), label: const Text('Choose CSV')), const SizedBox(height: 16), Text('${_leads.length} leads ready to import'), const Spacer(), SizedBox(width: double.infinity, child: FilledButton(onPressed: _leads.isEmpty || _saving ? null : _import, child: Text(_saving ? 'Importing...' : 'Import leads')))])));
+  Widget build(BuildContext context) => Scaffold(appBar: AppBar(title: const Text('Import leads')), body: Padding(padding: const EdgeInsets.all(20), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [const Text('CSV columns: name, phone, site. Optional: status, source, follow_up_date, assigned_to.'), const SizedBox(height: 16), OutlinedButton.icon(onPressed: _pickFile, icon: const Icon(Icons.upload_file), label: const Text('Choose CSV')), const SizedBox(height: 16), Text('${_leads.length} leads ready to import'), const Spacer(), SizedBox(width: double.infinity, child: FilledButton(onPressed: _leads.isEmpty || _saving ? null : _import, child: Text(_saving ? 'Importing...' : 'Import leads')))])));
 }
