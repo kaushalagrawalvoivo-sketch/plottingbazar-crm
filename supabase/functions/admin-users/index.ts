@@ -193,6 +193,30 @@ Deno.serve(async (req: Request) => {
         return json({ error: "You cannot delete your own account." }, 400);
       }
 
+      // Before deleting the auth user, reassign/clear every row anywhere
+      // in the database that still points at them (leads, call logs,
+      // feedback, activity, etc.). Without this, Postgres rejects the
+      // delete with a generic "Database error deleting user" the moment
+      // any table has a foreign key to this user that isn't already
+      // ON DELETE CASCADE/SET NULL -- see the
+      // 20260811_admin_delete_user_prep.sql migration for the full
+      // explanation. Reassigning to the admin performing the deletion
+      // (instead of just deleting those rows) keeps the history intact.
+      const { error: prepError } = await adminClient.rpc(
+        "admin_delete_user_prep",
+        { target_user_id: userId, fallback_user_id: user.id },
+      );
+      if (prepError) {
+        return json(
+          {
+            error:
+              `Could not reassign this user's records before deleting: ${prepError.message}. ` +
+              "Make sure the 20260811_admin_delete_user_prep.sql migration has been run.",
+          },
+          400,
+        );
+      }
+
       const { error: deleteError } = await adminClient.auth.admin
         .deleteUser(userId);
       if (deleteError) return json({ error: deleteError.message }, 400);

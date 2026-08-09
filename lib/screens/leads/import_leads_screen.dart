@@ -18,6 +18,7 @@ class ImportLeadsScreen extends ConsumerStatefulWidget {
 class _ImportLeadsScreenState extends ConsumerState<ImportLeadsScreen> {
   List<LeadModel> _leads = [];
   int _skippedRows = 0;
+  int _raggedRows = 0;
   String? _fileName;
   bool _parsing = false;
   bool _saving = false;
@@ -32,6 +33,7 @@ class _ImportLeadsScreenState extends ConsumerState<ImportLeadsScreen> {
       _error = null;
       _leads = [];
       _skippedRows = 0;
+      _raggedRows = 0;
       _fileName = null;
     });
 
@@ -75,7 +77,7 @@ class _ImportLeadsScreenState extends ConsumerState<ImportLeadsScreen> {
       }
 
       final headers = nonEmptyRows.first
-          .map((cell) => cell.toString().trim().toLowerCase())
+          .map((cell) => _clean(cell.toString()).toLowerCase())
           .toList();
       final missing = ['name', 'phone', 'site']
           .where((required) => !headers.contains(required))
@@ -90,7 +92,7 @@ class _ImportLeadsScreenState extends ConsumerState<ImportLeadsScreen> {
       String cell(List<dynamic> row, String name) {
         final index = headers.indexOf(name);
         if (index < 0 || index >= row.length) return '';
-        return row[index].toString().trim();
+        return _clean(row[index].toString());
       }
 
       // Resolve "assigned_to" by Supabase user id, email, or full name --
@@ -131,9 +133,22 @@ class _ImportLeadsScreenState extends ConsumerState<ImportLeadsScreen> {
 
       final parsed = <LeadModel>[];
       var skipped = 0;
+      var raggedRows = 0;
       for (final row in nonEmptyRows.skip(1)) {
-        final name = cell(row, 'name');
+        // A row with a different number of columns than the header means
+        // a stray/missing comma somewhere shifted every value after it --
+        // e.g. an unquoted address like "Plot 4, Sector 12" in a CSV that
+        // wasn't actually quoted. That reliably makes name/phone come back
+        // empty even though the row "looks" fine, so it's worth telling
+        // the user apart from a row that's genuinely missing data.
+        if (row.length != headers.length) raggedRows++;
+        var name = cell(row, 'name');
         final phone = cell(row, 'phone');
+        // Name is often left blank when leads come from a call list that
+        // only has numbers -- fall back to the phone number itself
+        // instead of dropping the row, so nothing gets silently skipped
+        // just because a name wasn't typed in.
+        if (name.isEmpty && phone.isNotEmpty) name = phone;
         if (name.isEmpty || phone.isEmpty) {
           skipped++;
           continue;
@@ -155,14 +170,23 @@ class _ImportLeadsScreenState extends ConsumerState<ImportLeadsScreen> {
       }
 
       if (parsed.isEmpty) {
-        throw const FormatException(
-          'No valid rows found -- every row is missing a name or phone number.',
+        final sampleRow = nonEmptyRows.length > 1 ? nonEmptyRows[1] : null;
+        final raggedNote = raggedRows > 0
+            ? ' $raggedRows row(s) had a different number of columns than '
+                  'the header (${headers.length}) -- check for an unquoted '
+                  'comma inside a value, e.g. an address.'
+            : '';
+        throw FormatException(
+          'No valid rows found -- every row is missing a phone number. '
+          'Detected columns: ${headers.join(', ')}.$raggedNote'
+          '${sampleRow != null ? ' First data row read as: $sampleRow' : ''}',
         );
       }
 
       setState(() {
         _leads = parsed;
         _skippedRows = skipped;
+        _raggedRows = raggedRows;
         _fileName = result.files.single.name;
       });
     } catch (error) {
@@ -171,6 +195,17 @@ class _ImportLeadsScreenState extends ConsumerState<ImportLeadsScreen> {
       if (mounted) setState(() => _parsing = false);
     }
   }
+
+  /// Trims a cell and strips invisible characters that regularly sneak
+  /// into CSVs exported from Excel/Google Sheets/WhatsApp copy-paste --
+  /// a non-breaking space (U+00A0), zero-width space (U+200B) or another
+  /// stray byte-order-mark on a header makes it fail to match "name" even
+  /// though it looks completely normal on screen.
+  String _clean(String value) => value
+      .replaceAll('\uFEFF', '')
+      .replaceAll('\u200B', '')
+      .replaceAll('\u00A0', ' ')
+      .trim();
 
   /// Tries UTF-8 first (handles Hindi/other non-ASCII text correctly);
   /// falls back to Latin-1 for CSVs saved by older Excel versions in a
@@ -208,7 +243,8 @@ class _ImportLeadsScreenState extends ConsumerState<ImportLeadsScreen> {
         children: [
           const Text(
             'CSV columns: name, phone, site. Optional: status, source, '
-            'follow_up_date, assigned_to (email or full name).',
+            'follow_up_date, assigned_to (email or full name). If name is '
+            'left blank, the phone number is used as the name.',
           ),
           const SizedBox(height: 16),
           OutlinedButton.icon(
@@ -243,8 +279,16 @@ class _ImportLeadsScreenState extends ConsumerState<ImportLeadsScreen> {
           if (_skippedRows > 0) ...[
             const SizedBox(height: 4),
             Text(
-              '$_skippedRows row${_skippedRows == 1 ? '' : 's'} skipped (missing name or phone).',
+              '$_skippedRows row${_skippedRows == 1 ? '' : 's'} skipped (missing phone number).',
               style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+          if (_raggedRows > 0) ...[
+            const SizedBox(height: 4),
+            Text(
+              '$_raggedRows row${_raggedRows == 1 ? '' : 's'} had an unexpected number '
+              'of columns -- double-check for an unquoted comma inside a value.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.orange[800]),
             ),
           ],
           if (_leads.isNotEmpty) ...[

@@ -163,7 +163,15 @@ class _AddLeadScreenState extends ConsumerState<AddLeadScreen> {
           const SizedBox(height: 14),
           DropdownButtonFormField<String>(
             value: _assignee,
-            decoration: const InputDecoration(labelText: 'Assign to sales/telecaller'),
+            decoration: InputDecoration(
+              labelText: 'Assign to sales/telecaller',
+              // With no Sales/Telecaller accounts yet, the menu would
+              // otherwise render with zero items and tapping it would look
+              // like it does nothing -- this explains why instead.
+              helperText: _users.isEmpty
+                  ? 'No Sales/Telecaller accounts yet -- add one from Manage users'
+                  : null,
+            ),
             items: _users
                 .map(
                   (u) => DropdownMenuItem(
@@ -176,7 +184,7 @@ class _AddLeadScreenState extends ConsumerState<AddLeadScreen> {
                   ),
                 )
                 .toList(),
-            onChanged: (v) => setState(() => _assignee = v),
+            onChanged: _users.isEmpty ? null : (v) => setState(() => _assignee = v),
           ),
           const SizedBox(height: 24),
           FilledButton(

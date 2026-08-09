@@ -96,6 +96,31 @@ class _LeadListScreenState extends ConsumerState<LeadListScreen> {
 
   Future<void> _assignSelected() async {
     if (_selectedIds.isEmpty) return;
+
+    // With zero sales/telecaller accounts, the dropdown below would render
+    // with an empty (invisible) menu -- tapping it looks like it "doesn't
+    // open" at all. Catch that up front with a clear explanation instead.
+    if (_users.isEmpty) {
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('No one to assign to'),
+          content: const Text(
+            'There are no Sales or Telecaller accounts yet. Add one from '
+            '"Manage users" (role = Sales or Telecaller), then try '
+            'assigning again.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
     String? assignee;
     final selected = await showModalBottomSheet<String>(
       context: context,
