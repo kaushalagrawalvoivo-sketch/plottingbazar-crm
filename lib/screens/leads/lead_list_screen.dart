@@ -62,6 +62,13 @@ class _LeadListScreenState extends ConsumerState<LeadListScreen> {
   _AssignmentFilter _assignmentFilter = _AssignmentFilter.all;
   List<Map<String, dynamic>> _users = [];
 
+  /// The lead the user tapped first (the "starting point"). "Select next
+  /// N" counts forward from this lead's position in the visible list,
+  /// instead of always starting from the top -- so the admin can scroll
+  /// to wherever they left off, tap that lead, then grab the next batch
+  /// from there.
+  String? _anchorId;
+
   /// userId -> display name/email, built from [_users] once loaded, so
   /// every lead card can show who it's already assigned to.
   Map<String, String> get _userNames => {
@@ -117,21 +124,48 @@ class _LeadListScreenState extends ConsumerState<LeadListScreen> {
   void _toggleSelectionMode() => setState(() {
     _selectionMode = !_selectionMode;
     _selectedIds.clear();
+    _anchorId = null;
   });
 
   /// Selects every lead currently matching the search/status/assignment
-  /// filters, or just the first [count] of them -- so assigning a batch
-  /// (20/30/40/50...) doesn't mean tapping each checkbox by hand.
-  void _selectFromFiltered(List<dynamic> filteredLeads, {int? count}) {
+  /// filters -- for the rare case the admin really does want everything.
+  void _selectAllFiltered(List<dynamic> filteredLeads) {
     final ids = filteredLeads
         .map((lead) => lead.id as String?)
         .whereType<String>()
         .toList();
-    final take = count == null || count > ids.length ? ids.length : count;
     setState(() {
       _selectedIds
         ..clear()
-        ..addAll(ids.take(take));
+        ..addAll(ids);
+      _anchorId = ids.isEmpty ? null : ids.first;
+    });
+  }
+
+  /// Selects [count] leads starting from [_anchorId]'s position in the
+  /// visible list and moving forward -- e.g. tap lead #35 as the
+  /// starting point, then "next 20" grabs #35-#54, not #1-#20.
+  void _selectForwardFromAnchor(List<dynamic> filteredLeads, int count) {
+    final ids = filteredLeads
+        .map((lead) => lead.id as String?)
+        .whereType<String>()
+        .toList();
+    final anchorIndex = _anchorId == null ? -1 : ids.indexOf(_anchorId);
+    if (anchorIndex == -1) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            "Tap a lead's checkbox first to set the starting point.",
+          ),
+        ),
+      );
+      return;
+    }
+    final end = (anchorIndex + count).clamp(0, ids.length);
+    setState(() {
+      _selectedIds
+        ..clear()
+        ..addAll(ids.sublist(anchorIndex, end));
     });
   }
 
@@ -244,6 +278,7 @@ class _LeadListScreenState extends ConsumerState<LeadListScreen> {
       if (!mounted) return;
       setState(() {
         _selectedIds.clear();
+        _anchorId = null;
         _selectionMode = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(
@@ -309,9 +344,9 @@ class _LeadListScreenState extends ConsumerState<LeadListScreen> {
               icon: const Icon(Icons.playlist_add_check),
               onSelected: (value) {
                 if (value == -1) {
-                  _selectFromFiltered(leads);
+                  _selectAllFiltered(leads);
                 } else {
-                  _selectFromFiltered(leads, count: value);
+                  _selectForwardFromAnchor(leads, value);
                 }
               },
               itemBuilder: (_) => [
@@ -320,8 +355,20 @@ class _LeadListScreenState extends ConsumerState<LeadListScreen> {
                   child: Text('Select all (${leads.length})'),
                 ),
                 const PopupMenuDivider(),
-                for (final count in const [20, 30, 40, 50])
-                  PopupMenuItem(value: count, child: Text('Select first $count')),
+                if (_anchorId == null)
+                  const PopupMenuItem(
+                    enabled: false,
+                    child: Text(
+                      'Tap a lead to set the starting point',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                  )
+                else
+                  for (final count in const [10, 20, 30, 40, 50, 60, 70])
+                    PopupMenuItem(
+                      value: count,
+                      child: Text('Next $count from here'),
+                    ),
               ],
             ),
           if (_canManage)
@@ -473,10 +520,22 @@ class _LeadListScreenState extends ConsumerState<LeadListScreen> {
                         onSelected: id == null
                             ? null
                             : (value) => setState(() {
-                                if (value == true)
+                                if (value == true) {
                                   _selectedIds.add(id);
-                                else
+                                  // First tap in a fresh selection sets the
+                                  // starting point for "Next N from here".
+                                  _anchorId ??= id;
+                                } else {
                                   _selectedIds.remove(id);
+                                  if (_anchorId == id) {
+                                    // Starting point was deselected -- fall
+                                    // back to another selected lead, or
+                                    // clear it if nothing's selected.
+                                    _anchorId = _selectedIds.isEmpty
+                                        ? null
+                                        : _selectedIds.first;
+                                  }
+                                }
                               }),
                         onTap: () => Navigator.push(
                           context,
