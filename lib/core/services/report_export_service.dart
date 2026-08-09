@@ -118,7 +118,10 @@ class ReportExportService {
       ),
     ];
 
-    final csv = const CsvEncoder(addBom: true).convert(rows);
+    // NOTE: csv 8.x replaced CsvEncoder(addBom: true) with the Csv class
+    // and dropped the addBom option entirely. Excel still needs that BOM
+    // to open UTF-8 CSVs correctly, so it's added by hand here.
+    final csv = '\uFEFF${Csv().encode(rows)}';
     await FileSaver.instance.saveFile(
       name: _fileName('report'),
       bytes: Uint8List.fromList(utf8.encode(csv)),
