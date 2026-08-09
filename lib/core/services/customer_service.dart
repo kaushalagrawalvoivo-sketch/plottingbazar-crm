@@ -5,13 +5,27 @@ import '../../models/customer_model.dart';
 class CustomerService {
   final _db = Supabase.instance.client;
 
-  Future<List<CustomerModel>> getCustomers() async {
-    final response = await _db
-        .from('customers')
-        .select()
-        .order('created_at', ascending: false);
+  // Same 1000-row PostgREST cap as leads (see LeadService) -- paginate so
+  // every customer loads, not just the first 1000.
+  static const int _pageSize = 1000;
 
-    return (response as List).map((e) => CustomerModel.fromJson(e)).toList();
+  Future<List<CustomerModel>> getCustomers() async {
+    final all = <CustomerModel>[];
+    var from = 0;
+    while (true) {
+      final response = await _db
+          .from('customers')
+          .select()
+          .order('created_at', ascending: false)
+          .range(from, from + _pageSize - 1);
+      final page = (response as List)
+          .map((e) => CustomerModel.fromJson(e))
+          .toList();
+      all.addAll(page);
+      if (page.length < _pageSize) break;
+      from += _pageSize;
+    }
+    return all;
   }
 
   Future<void> addCustomer(CustomerModel customer) async {

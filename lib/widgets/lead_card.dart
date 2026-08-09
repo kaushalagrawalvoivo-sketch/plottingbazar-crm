@@ -23,6 +23,20 @@ class LeadCard extends ConsumerWidget {
   /// in the action sheet (telecallers cannot delete).
   final String? role;
 
+  /// Display name of whoever this lead is assigned to, or null if
+  /// unassigned. Only meaningful when [showAssignment] is true (admin/
+  /// manager views -- see LeadListScreen) so the person doing the
+  /// assigning can see at a glance whether a lead is already someone's
+  /// before selecting it -- the main guard against accidentally
+  /// assigning the same lead twice.
+  final String? assigneeName;
+
+  /// Whether to render the assignment badge at all. Kept separate from
+  /// [assigneeName] because "unassigned" is itself a value worth
+  /// showing (in orange) to admins/managers, but regular users -- who
+  /// only ever see their own leads anyway -- shouldn't see it.
+  final bool showAssignment;
+
   const LeadCard({
     super.key,
     required this.lead,
@@ -32,6 +46,8 @@ class LeadCard extends ConsumerWidget {
     this.selected = false,
     this.onSelected,
     this.role,
+    this.assigneeName,
+    this.showAssignment = false,
   });
 
   Color get statusColor {
@@ -113,6 +129,39 @@ class LeadCard extends ConsumerWidget {
                         ),
                       ],
                     ),
+                    if (showAssignment) ...[
+                      const SizedBox(height: 3),
+                      Row(
+                        children: [
+                          Icon(
+                            assigneeName == null
+                                ? Icons.person_off_outlined
+                                : Icons.person_outline,
+                            size: 12,
+                            color: assigneeName == null
+                                ? Colors.orange.shade800
+                                : Colors.grey.shade600,
+                          ),
+                          const SizedBox(width: 3),
+                          Expanded(
+                            child: Text(
+                              assigneeName ?? 'Unassigned',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: assigneeName == null
+                                    ? FontWeight.w600
+                                    : FontWeight.normal,
+                                color: assigneeName == null
+                                    ? Colors.orange.shade800
+                                    : Colors.grey.shade600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),

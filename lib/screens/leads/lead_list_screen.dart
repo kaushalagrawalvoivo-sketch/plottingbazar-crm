@@ -25,17 +25,31 @@ class LeadListScreen extends ConsumerStatefulWidget {
   /// Display name of [assignedToUserId], shown in the app bar title.
   final String? assignedToLabel;
 
+  /// Show only leads created at/after this moment -- used by the
+  /// dashboard's "Added today" tile to drill into today's new leads.
+  final DateTime? createdAfter;
+
+  /// App bar title to use when [createdAfter] is set (e.g. "Added today").
+  final String? createdLabel;
+
   const LeadListScreen({
     super.key,
     this.initialStatus,
     this.overdueOnly = false,
     this.assignedToUserId,
     this.assignedToLabel,
+    this.createdAfter,
+    this.createdLabel,
   });
 
   @override
   ConsumerState<LeadListScreen> createState() => _LeadListScreenState();
 }
+
+/// Values for the manager-only "who is this assigned to" filter, used to
+/// spot unassigned leads at a glance before assigning more -- so nobody
+/// double-assigns a lead that's already someone's.
+enum _AssignmentFilter { all, unassigned, assigned }
 
 class _LeadListScreenState extends ConsumerState<LeadListScreen> {
   final _search = TextEditingController();
@@ -45,7 +59,18 @@ class _LeadListScreenState extends ConsumerState<LeadListScreen> {
   bool _canManage = false;
   bool _selectionMode = false;
   bool _assigning = false;
+  _AssignmentFilter _assignmentFilter = _AssignmentFilter.all;
   List<Map<String, dynamic>> _users = [];
+
+  /// userId -> display name/email, built from [_users] once loaded, so
+  /// every lead card can show who it's already assigned to.
+  Map<String, String> get _userNames => {
+    for (final user in _users)
+      user['id'] as String:
+          ((user['full_name'] as String?)?.trim().isNotEmpty == true
+              ? (user['full_name'] as String).trim()
+              : (user['email']?.toString() ?? 'Unknown')),
+  };
 
   @override
   void initState() {
@@ -94,6 +119,22 @@ class _LeadListScreenState extends ConsumerState<LeadListScreen> {
     _selectedIds.clear();
   });
 
+  /// Selects every lead currently matching the search/status/assignment
+  /// filters, or just the first [count] of them -- so assigning a batch
+  /// (20/30/40/50...) doesn't mean tapping each checkbox by hand.
+  void _selectFromFiltered(List<dynamic> filteredLeads, {int? count}) {
+    final ids = filteredLeads
+        .map((lead) => lead.id as String?)
+        .whereType<String>()
+        .toList();
+    final take = count == null || count > ids.length ? ids.length : count;
+    setState(() {
+      _selectedIds
+        ..clear()
+        ..addAll(ids.take(take));
+    });
+  }
+
   Future<void> _assignSelected() async {
     if (_selectedIds.isEmpty) return;
 
@@ -121,6 +162,7 @@ class _LeadListScreenState extends ConsumerState<LeadListScreen> {
       return;
     }
 
+    final names = _userNames;
     String? assignee;
     final selected = await showModalBottomSheet<String>(
       context: context,
@@ -152,7 +194,35 @@ class _LeadListScreenState extends ConsumerState<LeadListScreen> {
                   }).toList(),
                   onChanged: (value) => setSheetState(() => assignee = value),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 8),
+                // Shows how many of the selected leads already belong to
+                // someone else, right before the admin confirms -- the
+                // main guard against accidentally double-assigning leads.
+                Builder(
+                  builder: (_) {
+                    final leads = ref.read(leadProvider);
+                    final alreadyAssigned = leads
+                        .where((lead) =>
+                            lead.id != null &&
+                            _selectedIds.contains(lead.id) &&
+                            lead.assignedTo != null &&
+                            lead.assignedTo != assignee)
+                        .length;
+                    if (alreadyAssigned == 0) return const SizedBox.shrink();
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        '$alreadyAssigned of the selected lead${alreadyAssigned == 1 ? ' is' : 's are'} '
+                        'already assigned to someone else and will be reassigned.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.orange.shade800,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 12),
                 FilledButton(
                   onPressed: assignee == null
                       ? null
@@ -177,7 +247,11 @@ class _LeadListScreenState extends ConsumerState<LeadListScreen> {
         _selectionMode = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Leads assigned successfully.')),
+        SnackBar(
+          content: Text(
+            'Leads assigned to ${names[selected] ?? 'user'} successfully.',
+          ),
+        ),
       );
     } catch (error) {
       if (mounted)
@@ -197,13 +271,24 @@ class _LeadListScreenState extends ConsumerState<LeadListScreen> {
       final matchesOverdue = !widget.overdueOnly || lead.isFollowUpOverdue;
       final matchesAssignee = widget.assignedToUserId == null ||
           lead.assignedTo == widget.assignedToUserId;
+      final matchesCreated = widget.createdAfter == null ||
+          (lead.createdAt != null &&
+              !lead.createdAt!.isBefore(widget.createdAfter!));
+      final matchesAssignmentFilter = switch (_assignmentFilter) {
+        _AssignmentFilter.all => true,
+        _AssignmentFilter.unassigned => lead.assignedTo == null,
+        _AssignmentFilter.assigned => lead.assignedTo != null,
+      };
       return matchesStatus &&
           matchesOverdue &&
           matchesAssignee &&
+          matchesCreated &&
+          matchesAssignmentFilter &&
           (lead.name.toLowerCase().contains(query) ||
               lead.phone.toLowerCase().contains(query) ||
               lead.site.toLowerCase().contains(query));
     }).toList();
+    final userNames = _userNames;
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -213,9 +298,32 @@ class _LeadListScreenState extends ConsumerState<LeadListScreen> {
               ? 'Overdue follow-ups'
               : widget.assignedToUserId != null
               ? 'Leads · ${widget.assignedToLabel ?? 'Employee'}'
+              : widget.createdAfter != null
+              ? widget.createdLabel ?? 'Recently added'
               : 'Leads',
         ),
         actions: [
+          if (_canManage && _selectionMode)
+            PopupMenuButton<int>(
+              tooltip: 'Select…',
+              icon: const Icon(Icons.playlist_add_check),
+              onSelected: (value) {
+                if (value == -1) {
+                  _selectFromFiltered(leads);
+                } else {
+                  _selectFromFiltered(leads, count: value);
+                }
+              },
+              itemBuilder: (_) => [
+                PopupMenuItem(
+                  value: -1,
+                  child: Text('Select all (${leads.length})'),
+                ),
+                const PopupMenuDivider(),
+                for (final count in const [20, 30, 40, 50])
+                  PopupMenuItem(value: count, child: Text('Select first $count')),
+              ],
+            ),
           if (_canManage)
             IconButton(
               tooltip: _selectionMode ? 'Cancel selection' : 'Select leads',
@@ -281,29 +389,65 @@ class _LeadListScreenState extends ConsumerState<LeadListScreen> {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: DropdownButtonFormField<String>(
-              value: _status,
-              isDense: true,
-              items:
-                  const [
-                        'All',
-                        'New',
-                        'Follow-up',
-                        'Qualified',
-                        'Booked',
-                        'Lost',
-                      ]
-                      .map(
-                        (status) => DropdownMenuItem(
-                          value: status,
-                          child: Text(status),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    value: _status,
+                    isDense: true,
+                    decoration: const InputDecoration(labelText: 'Status'),
+                    items:
+                        const [
+                              'All',
+                              'New',
+                              'Follow-up',
+                              'Qualified',
+                              'Booked',
+                              'Lost',
+                            ]
+                            .map(
+                              (status) => DropdownMenuItem(
+                                value: status,
+                                child: Text(status),
+                              ),
+                            )
+                            .toList(),
+                    onChanged: (value) => setState(() => _status = value!),
+                  ),
+                ),
+                if (_canManage) ...[
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: DropdownButtonFormField<_AssignmentFilter>(
+                      value: _assignmentFilter,
+                      isDense: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Assignment',
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                          value: _AssignmentFilter.all,
+                          child: Text('All'),
                         ),
-                      )
-                      .toList(),
-              onChanged: (value) => setState(() => _status = value!),
+                        DropdownMenuItem(
+                          value: _AssignmentFilter.unassigned,
+                          child: Text('Unassigned'),
+                        ),
+                        DropdownMenuItem(
+                          value: _AssignmentFilter.assigned,
+                          child: Text('Assigned'),
+                        ),
+                      ],
+                      onChanged: (value) =>
+                          setState(() => _assignmentFilter = value!),
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
+          const SizedBox(height: 4),
           Expanded(
             child: leads.isEmpty
                 ? const Center(child: Text('No leads found.'))
@@ -318,6 +462,14 @@ class _LeadListScreenState extends ConsumerState<LeadListScreen> {
                         role: _role,
                         selectionMode: _selectionMode,
                         selected: id != null && _selectedIds.contains(id),
+                        // Only shown for admins/managers, who are the ones
+                        // doing the assigning -- lets them see at a glance
+                        // whether a lead is already someone's before they
+                        // select it, so they don't duplicate-assign it.
+                        showAssignment: _canManage,
+                        assigneeName: lead.assignedTo == null
+                            ? null
+                            : (userNames[lead.assignedTo] ?? 'Unknown'),
                         onSelected: id == null
                             ? null
                             : (value) => setState(() {

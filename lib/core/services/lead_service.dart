@@ -5,6 +5,15 @@ import '../constants/roles.dart';
 class LeadService {
   final SupabaseClient _db = Supabase.instance.client;
 
+  /// Supabase/PostgREST caps any single `.select()` response at 1000 rows
+  /// (the project's default `max_rows` setting) no matter how many rows
+  /// actually match -- so once there were more than 1000 leads, the list,
+  /// dashboard counts, exports, etc. would all silently stop at 1000 with
+  /// no error. This fetches in pages of 1000 using `.range()` and keeps
+  /// going until a page comes back with fewer than the page size, so every
+  /// lead is returned regardless of how many there are.
+  static const int _pageSize = 1000;
+
   Future<List<LeadModel>> getLeads() async {
     final userId = _db.auth.currentUser?.id;
     if (userId == null) return [];
@@ -13,17 +22,29 @@ class LeadService {
         .select('role')
         .eq('id', userId)
         .maybeSingle();
-    var query = _db.from('leads').select();
     // RLS is the security boundary; this extra filter keeps the UI
     // deliberately scoped. Managers see everything too, matching
     // AppRoles.canManage's contract everywhere else in the app.
-    if (!AppRoles.canManage(profile?['role']?.toString())) {
-      query = query.eq('assigned_to', userId);
+    final scoped = !AppRoles.canManage(profile?['role']?.toString());
+
+    final all = <LeadModel>[];
+    var from = 0;
+    while (true) {
+      var query = _db.from('leads').select();
+      if (scoped) {
+        query = query.eq('assigned_to', userId);
+      }
+      final response = await query
+          .order('created_at', ascending: false)
+          .range(from, from + _pageSize - 1);
+      final page = (response as List)
+          .map((row) => LeadModel.fromJson(Map<String, dynamic>.from(row)))
+          .toList();
+      all.addAll(page);
+      if (page.length < _pageSize) break;
+      from += _pageSize;
     }
-    final response = await query.order('created_at', ascending: false);
-    return (response as List)
-        .map((row) => LeadModel.fromJson(Map<String, dynamic>.from(row)))
-        .toList();
+    return all;
   }
 
   Future<void> addLead(LeadModel lead) =>
