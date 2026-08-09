@@ -60,10 +60,16 @@ class _ImportLeadsScreenState extends ConsumerState<ImportLeadsScreen> {
       // any field that contains a comma inside quotes -- e.g. an address
       // like "Plot 4, Sector 12" -- which silently shifts every column
       // after it. The csv package handles quoting correctly.
-      final rows = const CsvToListConverter(
+      // Chaining `.convert(text)` straight onto `const CsvToListConverter(...)`
+      // makes dart2js treat the whole expression as something it must
+      // evaluate at compile time, which fails since `text` isn't a
+      // constant. Wrapping the const instance in parentheses fixes that:
+      // the converter object itself is still built once as a const value,
+      // but the `.convert(text)` call is a normal (non-const) call.
+      final rows = (const CsvToListConverter(
         shouldParseNumbers: false,
         eol: '\n',
-      ).convert(text);
+      )).convert(text);
       final nonEmptyRows = rows
           .where((row) => row.any((cell) => cell.toString().trim().isNotEmpty))
           .toList();

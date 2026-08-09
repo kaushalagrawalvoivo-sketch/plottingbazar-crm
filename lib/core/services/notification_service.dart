@@ -173,7 +173,10 @@ class NotificationService {
     try {
       await _configureTimeZone();
       final id = _stableNotificationId(lead);
-      await _plugin.cancel(id);
+      // This pinned plugin version takes `id` as a named parameter here
+      // (matching the `show`/`zonedSchedule` calls elsewhere in this file),
+      // not a positional one -- that mismatch is what dart2js was rejecting.
+      await _plugin.cancel(id: id);
 
       final followUp = lead.followUpDate;
       if (followUp == null) return;
