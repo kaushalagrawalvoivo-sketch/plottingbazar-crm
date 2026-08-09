@@ -124,8 +124,10 @@ class NotificationService {
     }
   }
 
-  /// Replaces scheduled reminders with one 9 AM local-time reminder per future
-  /// lead follow-up. Web browsers do not support scheduled notifications.
+  /// Replaces every scheduled reminder with one reminder per future lead
+  /// follow-up, at each lead's own chosen time (falling back to 9 AM local
+  /// time only for leads that don't have a specific time saved). Web
+  /// browsers do not support scheduled notifications.
   Future<void> syncFollowUpReminders(List<LeadModel> leads) async {
     await initialize();
     if (!_initialized || kIsWeb) return;
@@ -139,13 +141,7 @@ class NotificationService {
         final followUp = lead.followUpDate;
         if (followUp == null) continue;
 
-        final reminderAt = tz.TZDateTime(
-          tz.local,
-          followUp.year,
-          followUp.month,
-          followUp.day,
-          9,
-        );
+        final reminderAt = _reminderTime(followUp);
         if (!reminderAt.isAfter(now)) continue;
 
         await _plugin.zonedSchedule(
@@ -162,6 +158,43 @@ class NotificationService {
       }
     } catch (error) {
       debugPrint('Unable to schedule follow-up reminders: $error');
+    }
+  }
+
+  /// Schedules (or cancels) the reminder for just this one lead, without
+  /// touching any other lead's already-scheduled reminder. This is what
+  /// lets a reminder actually get saved the moment someone sets a
+  /// follow-up date/time on a lead, instead of only ever being scheduled
+  /// in bulk from the Reminders tab.
+  Future<void> scheduleReminder(LeadModel lead) async {
+    await initialize();
+    if (!_initialized || kIsWeb) return;
+
+    try {
+      await _configureTimeZone();
+      final id = _stableNotificationId(lead);
+      await _plugin.cancel(id);
+
+      final followUp = lead.followUpDate;
+      if (followUp == null) return;
+
+      final now = tz.TZDateTime.now(tz.local);
+      final reminderAt = _reminderTime(followUp);
+      if (!reminderAt.isAfter(now)) return;
+
+      await _plugin.zonedSchedule(
+        id: id,
+        title: 'Follow-up: ${lead.name}',
+        body: lead.site.trim().isEmpty
+            ? 'It is time to contact this lead.'
+            : 'Contact this lead about ${lead.site}.',
+        scheduledDate: reminderAt,
+        notificationDetails: _notificationDetails,
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        payload: lead.id,
+      );
+    } catch (error) {
+      debugPrint('Unable to schedule reminder: $error');
     }
   }
 
@@ -198,6 +231,23 @@ class NotificationService {
       );
     }
     _timeZoneReady = true;
+  }
+
+  /// Builds the actual moment a reminder should fire. Uses the specific
+  /// hour/minute stored on the lead's follow-up date-time when one was
+  /// picked; only falls back to 9:00 AM for older leads that just have a
+  /// bare date (hour/minute both 0) saved from before per-lead timing
+  /// existed. This is what stops every reminder firing at the same time.
+  tz.TZDateTime _reminderTime(DateTime followUp) {
+    final hasSpecificTime = followUp.hour != 0 || followUp.minute != 0;
+    return tz.TZDateTime(
+      tz.local,
+      followUp.year,
+      followUp.month,
+      followUp.day,
+      hasSpecificTime ? followUp.hour : 9,
+      hasSpecificTime ? followUp.minute : 0,
+    );
   }
 
   int _stableNotificationId(LeadModel lead) {

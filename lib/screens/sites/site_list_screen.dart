@@ -98,7 +98,7 @@ class _SiteListScreenState extends ConsumerState<SiteListScreen> {
                               children: [
                                 Text(site.location),
                                 Text(
-                                  "₹ ${site.pricePerSqft.toStringAsFixed(2)} / sqft",
+                                  "₹ ${site.pricePerSqft.toStringAsFixed(2)} / sqyd",
                                 ),
                               ],
                             ),

@@ -23,12 +23,24 @@ class ContactActionService {
     final number = _phoneForWhatsApp(phone);
     if (number.isEmpty) return false;
 
-    final message = site.trim().isEmpty
-        ? 'Namaste $name, PlottingBazaar CRM se aapke enquiry ke baare mein follow-up kar rahe hain.'
-        : 'Namaste $name, PlottingBazaar CRM se $site ke baare mein follow-up kar rahe hain.';
-    final url = Uri.https('wa.me', '/$number', {'text': message});
+    final url = Uri.https('wa.me', '/$number', {'text': welcomeMessage(name)});
 
     return launchUrl(url, mode: LaunchMode.externalApplication);
+  }
+
+  /// Welcome template sent to new/existing leads on WhatsApp. Kept as two
+  /// full, separate messages (Hindi first, then English) rather than
+  /// merged/mixed together, per the client's requirement.
+  static String welcomeMessage(String name) {
+    final hindi =
+        'राधे राधे $name जी, PlottingBazaar.com परिवार में आपका स्वागत है! 🙏\n'
+        'हम आपके सपनों का घर या बेहतरीन इन्वेस्टमेंट के लिए सही ज़मीन ढूंढने में आपकी मदद करने के लिए बेहद उत्सुक हैं। चाहे आपको शांत आवासीय जगह चाहिए या हाई-रिटर्न प्लॉट, हमारे पास आपके लिए सब कुछ है।\n'
+        'आज हम आपकी किस तरह मदद कर सकते हैं? अपनी पसंद हमें बताएं, और हमारी टीम तुरंत बेहतरीन ऑप्शंस आपके साथ शेयर करेगी! ✨';
+    final english =
+        'Radhe Radhe $name ji, welcome to the PlottingBazaar.com family! 🙏\n'
+        "We're excited to help you find the perfect land for your dream home or a great investment. Whether you're looking for a peaceful residential plot or a high-return investment opportunity, we have it all for you.\n"
+        'How can we help you today? Share your preference with us, and our team will get back to you right away with the best options! ✨';
+    return '$hindi\n\n$english';
   }
 
   /// Shares one or more picked files (image/video/audio/document) through

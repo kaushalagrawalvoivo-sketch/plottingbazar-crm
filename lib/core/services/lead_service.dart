@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/lead_model.dart';
+import '../constants/roles.dart';
 
 class LeadService {
   final SupabaseClient _db = Supabase.instance.client;
@@ -13,8 +14,12 @@ class LeadService {
         .eq('id', userId)
         .maybeSingle();
     var query = _db.from('leads').select();
-    // RLS is the security boundary; this extra filter keeps the UI deliberately scoped.
-    if (profile?['role'] != 'admin') query = query.eq('assigned_to', userId);
+    // RLS is the security boundary; this extra filter keeps the UI
+    // deliberately scoped. Managers see everything too, matching
+    // AppRoles.canManage's contract everywhere else in the app.
+    if (!AppRoles.canManage(profile?['role']?.toString())) {
+      query = query.eq('assigned_to', userId);
+    }
     final response = await query.order('created_at', ascending: false);
     return (response as List)
         .map((row) => LeadModel.fromJson(Map<String, dynamic>.from(row)))
@@ -23,6 +28,12 @@ class LeadService {
 
   Future<void> addLead(LeadModel lead) =>
       _db.from('leads').insert(lead.toJson());
+
+  Future<LeadModel?> getLeadById(String id) async {
+    final row = await _db.from('leads').select().eq('id', id).maybeSingle();
+    if (row == null) return null;
+    return LeadModel.fromJson(Map<String, dynamic>.from(row));
+  }
 
   /// Checks (via a security-definer RPC so RLS doesn't hide leads owned by
   /// other employees) whether a phone number is already a lead somewhere in

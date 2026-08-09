@@ -7,14 +7,20 @@ import 'package:share_plus/share_plus.dart';
 import '../../core/services/call_log_service.dart';
 import '../../core/services/contact_action_service.dart';
 import '../../core/services/feedback_service.dart';
+import '../../core/services/notification_service.dart';
 import '../../models/call_log_model.dart';
 import '../../models/lead_feedback_model.dart';
 import '../../models/lead_model.dart';
 import '../../providers/lead_provider.dart';
 
 class EditLeadScreen extends ConsumerStatefulWidget {
-  const EditLeadScreen({super.key, required this.lead});
+  const EditLeadScreen({super.key, required this.lead, this.autoCall = false});
   final LeadModel lead;
+
+  /// When true, immediately opens the phone dialer for this lead as soon
+  /// as the screen appears (used when "Call" is tapped from the lead list,
+  /// so the same post-call feedback/reminder flow below applies there too).
+  final bool autoCall;
 
   @override
   ConsumerState<EditLeadScreen> createState() => _EditLeadScreenState();
@@ -37,7 +43,8 @@ class _TimelineItem {
       call = null;
 }
 
-class _EditLeadScreenState extends ConsumerState<EditLeadScreen> {
+class _EditLeadScreenState extends ConsumerState<EditLeadScreen>
+    with WidgetsBindingObserver {
   final _form = GlobalKey<FormState>();
   late final TextEditingController _name;
   late final TextEditingController _phone;
@@ -52,10 +59,17 @@ class _EditLeadScreenState extends ConsumerState<EditLeadScreen> {
   final _feedbackService = FeedbackService();
   final _feedbackController = TextEditingController();
   DateTime? _nextFollowUp;
+  TimeOfDay? _nextFollowUpTime;
   bool _historyLoading = true;
   bool _savingFeedback = false;
   List<CallLogModel> _callLogs = [];
   List<LeadFeedbackModel> _feedbackList = [];
+
+  /// True from the moment the phone dialer is opened until the app is
+  /// resumed (i.e. the user has returned after the call ended/was
+  /// cancelled). Only then do we show the post-call sheet -- showing it
+  /// immediately, before the call happens, was the bug.
+  bool _awaitingCallReturn = false;
 
   @override
   void initState() {
@@ -70,16 +84,36 @@ class _EditLeadScreenState extends ConsumerState<EditLeadScreen> {
     _source = widget.lead.source;
     _purpose = widget.lead.purpose;
     _loadHistory();
+    WidgetsBinding.instance.addObserver(this);
+    if (widget.autoCall) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _call();
+      });
+    }
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _name.dispose();
     _phone.dispose();
     _site.dispose();
     _budget.dispose();
     _feedbackController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.resumed && _awaitingCallReturn) {
+      _awaitingCallReturn = false;
+      // Wait a beat for the UI to finish resuming before popping up the
+      // sheet, so it doesn't appear while the dialer is still animating away.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _showPostCallSheet();
+      });
+    }
   }
 
   Future<void> _loadHistory() async {
@@ -151,9 +185,10 @@ class _EditLeadScreenState extends ConsumerState<EditLeadScreen> {
       ).showSnackBar(const SnackBar(content: Text('Could not open the phone app.')));
       return;
     }
-    // After the dialer opens, ask the employee to log the outcome so the
-    // admin dashboard and this lead's history stay accurate.
-    _showLogCallSheet();
+    // Don't show the outcome/feedback sheet yet -- the dialer is only just
+    // opening, the call hasn't happened. Wait until the app resumes (the
+    // user came back after the call ended) via didChangeAppLifecycleState.
+    _awaitingCallReturn = true;
   }
 
   Future<void> _openWhatsApp() async {
@@ -205,14 +240,14 @@ class _EditLeadScreenState extends ConsumerState<EditLeadScreen> {
     }
   }
 
-  Future<void> _showLogCallSheet() async {
+  Future<void> _showPostCallSheet() async {
     final leadId = widget.lead.id;
     if (leadId == null) return;
     String outcome = CallLogModel.outcomes.first;
     final notesController = TextEditingController();
     final durationController = TextEditingController();
 
-    final confirmed = await showModalBottomSheet<bool>(
+    final saved = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       builder: (sheetContext) => Padding(
@@ -228,7 +263,9 @@ class _EditLeadScreenState extends ConsumerState<EditLeadScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text('Log this call', style: Theme.of(context).textTheme.titleLarge),
+                Text('How did the call go?', style: Theme.of(context).textTheme.titleLarge),
+                const SizedBox(height: 4),
+                Text(_name.text, style: Theme.of(context).textTheme.bodyMedium),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
                   value: outcome,
@@ -254,15 +291,50 @@ class _EditLeadScreenState extends ConsumerState<EditLeadScreen> {
                     labelText: 'Call notes (optional)',
                   ),
                 ),
+                const Divider(height: 28),
+                Text('Feedback', style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _feedbackController,
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    labelText: 'What did the customer say? Next steps?',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: () async {
+                    final picked = await showDatePicker(
+                      context: context,
+                      initialDate:
+                          _nextFollowUp ?? DateTime.now().add(const Duration(days: 1)),
+                      firstDate: DateTime.now(),
+                      lastDate: DateTime.now().add(const Duration(days: 365)),
+                    );
+                    if (picked != null) setSheetState(() => _nextFollowUp = picked);
+                  },
+                  icon: const Icon(Icons.event_outlined),
+                  label: Text(
+                    _nextFollowUp == null
+                        ? 'Set follow-up / reminder date'
+                        : DateFormat('dd MMM yyyy').format(_nextFollowUp!),
+                  ),
+                ),
+                if (_nextFollowUp != null) ...[
+                  const SizedBox(height: 10),
+                  Text('Reminder time', style: Theme.of(context).textTheme.labelMedium),
+                  const SizedBox(height: 6),
+                  _reminderTimeChips(setSheetState),
+                ],
                 const SizedBox(height: 20),
                 FilledButton(
                   onPressed: () => Navigator.pop(sheetContext, true),
-                  child: const Text('Save call log'),
+                  child: const Text('Save'),
                 ),
                 const SizedBox(height: 8),
                 TextButton(
                   onPressed: () => Navigator.pop(sheetContext, false),
-                  child: const Text('Skip'),
+                  child: const Text('Not now'),
                 ),
               ],
             ),
@@ -271,7 +343,11 @@ class _EditLeadScreenState extends ConsumerState<EditLeadScreen> {
       ),
     );
 
-    if (confirmed != true || !mounted) return;
+    if (!mounted) return;
+    // Reflect any date/time picked inside the sheet on the page underneath.
+    setState(() {});
+    if (saved != true) return;
+
     await _callLogService.addCallLog(
       CallLogModel(
         leadId: leadId,
@@ -287,57 +363,143 @@ class _EditLeadScreenState extends ConsumerState<EditLeadScreen> {
           leadId: leadId,
           description: '${_name.text}: call outcome "$outcome"',
         );
+
+    // Reuses the same save path as the always-visible feedback section
+    // below, so feedback text and the follow-up reminder (with its own
+    // chosen time, not a hardcoded 9 AM) get saved and the on-device
+    // reminder is scheduled right away.
+    await _saveFeedback(showEmptyWarning: false);
+
     if (mounted) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Call logged.')));
     }
-    await _loadHistory();
   }
 
-  Future<void> _saveFeedback() async {
+  /// Quick-pick chips for a reminder time, plus a custom option -- so
+  /// every lead's reminder doesn't fire at the same fixed 9 AM. Accepts
+  /// either the page's own setState or a bottom sheet's setSheetState so
+  /// it can be reused in both places.
+  Widget _reminderTimeChips(void Function(VoidCallback) rebuild) {
+    const options = [
+      TimeOfDay(hour: 9, minute: 0),
+      TimeOfDay(hour: 12, minute: 0),
+      TimeOfDay(hour: 15, minute: 0),
+      TimeOfDay(hour: 18, minute: 0),
+    ];
+    final isCustom =
+        _nextFollowUpTime != null && !options.contains(_nextFollowUpTime);
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        for (final option in options)
+          ChoiceChip(
+            label: Text(option.format(context)),
+            selected: _nextFollowUpTime == option,
+            onSelected: (_) => rebuild(() => _nextFollowUpTime = option),
+          ),
+        ActionChip(
+          avatar: const Icon(Icons.more_time, size: 16),
+          label: Text(isCustom ? _nextFollowUpTime!.format(context) : 'Custom'),
+          onPressed: () async {
+            final picked = await showTimePicker(
+              context: context,
+              initialTime: _nextFollowUpTime ?? const TimeOfDay(hour: 9, minute: 0),
+            );
+            if (picked != null) rebuild(() => _nextFollowUpTime = picked);
+          },
+        ),
+      ],
+    );
+  }
+
+  DateTime _combinedFollowUp() {
+    final date = _nextFollowUp!;
+    final time = _nextFollowUpTime ?? const TimeOfDay(hour: 9, minute: 0);
+    return DateTime(date.year, date.month, date.day, time.hour, time.minute);
+  }
+
+  Future<void> _saveFeedback({bool showEmptyWarning = true}) async {
     final leadId = widget.lead.id;
+    if (leadId == null) return;
     final text = _feedbackController.text.trim();
-    if (leadId == null || text.isEmpty) return;
+    final hasFollowUp = _nextFollowUp != null;
+
+    // Previously this silently did nothing whenever the feedback text box
+    // was empty -- even if a follow-up date/time WAS set -- which is why
+    // reminders looked like they "weren't saving". Now a follow-up alone
+    // is enough to save.
+    if (text.isEmpty && !hasFollowUp) {
+      if (showEmptyWarning && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Add feedback text or set a follow-up date to save.'),
+          ),
+        );
+      }
+      return;
+    }
+
     setState(() => _savingFeedback = true);
     try {
+      final combinedFollowUp = hasFollowUp ? _combinedFollowUp() : null;
+      final savedText = text.isEmpty ? 'Follow-up scheduled' : text;
+
       await _feedbackService.addFeedback(
         LeadFeedbackModel(
           leadId: leadId,
-          feedback: text,
-          nextFollowUpDate: _nextFollowUp,
+          feedback: savedText,
+          nextFollowUpDate: combinedFollowUp,
         ),
       );
       await ref.read(activityServiceProvider).log(
             actionType: 'feedback_added',
             leadId: leadId,
-            description: '${_name.text}: $text',
+            description: '${_name.text}: $savedText',
           );
 
-      // Keep the lead's own follow-up date in sync with the latest feedback,
-      // so it also shows up correctly on the Reminders screen and lead card.
-      if (_nextFollowUp != null) {
-        await ref.read(leadProvider.notifier).updateLead(
-              widget.lead.copyWith(
-                name: _name.text.trim(),
-                phone: _phone.text.trim(),
-                site: _site.text.trim(),
-                status: _status,
-                source: _source,
-                purpose: _purpose,
-                budget: double.tryParse(_budget.text.trim()),
-                followUpDate: _nextFollowUp,
-              ),
-            );
+      // Keep the lead's own follow-up date in sync with the latest
+      // feedback, so it also shows up correctly on the Reminders screen
+      // and lead card -- and actually schedule the on-device reminder
+      // right now. This used to only happen if someone separately opened
+      // the Reminders tab and tapped "sync", which is why reminders
+      // looked like they weren't saving at all.
+      if (combinedFollowUp != null) {
+        final updatedLead = widget.lead.copyWith(
+          name: _name.text.trim(),
+          phone: _phone.text.trim(),
+          site: _site.text.trim(),
+          status: _status,
+          source: _source,
+          purpose: _purpose,
+          budget: double.tryParse(_budget.text.trim()),
+          followUpDate: combinedFollowUp,
+        );
+        await ref.read(leadProvider.notifier).updateLead(updatedLead);
+        await NotificationService.instance.requestPermission();
+        await NotificationService.instance.scheduleReminder(updatedLead);
       }
 
       _feedbackController.clear();
-      setState(() => _nextFollowUp = null);
+      if (mounted) {
+        setState(() {
+          _nextFollowUp = null;
+          _nextFollowUpTime = null;
+        });
+      }
       await _loadHistory();
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Feedback saved.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              combinedFollowUp != null
+                  ? 'Feedback saved and reminder set for ${DateFormat('dd MMM, hh:mm a').format(combinedFollowUp)}.'
+                  : 'Feedback saved.',
+            ),
+          ),
+        );
       }
     } finally {
       if (mounted) setState(() => _savingFeedback = false);
@@ -371,7 +533,7 @@ class _EditLeadScreenState extends ConsumerState<EditLeadScreen> {
           DropdownButtonFormField<String>(
             value: _status,
             decoration: const InputDecoration(labelText: 'Status'),
-            items: const ['New', 'Follow-up', 'Qualified', 'Booked', 'Lost']
+            items: LeadModel.statusItems(_status)
                 .map((s) => DropdownMenuItem(value: s, child: Text(s)))
                 .toList(),
             onChanged: (v) => setState(() => _status = v!),
@@ -380,7 +542,7 @@ class _EditLeadScreenState extends ConsumerState<EditLeadScreen> {
           DropdownButtonFormField<String>(
             value: _source,
             decoration: const InputDecoration(labelText: 'Lead source'),
-            items: LeadModel.sources
+            items: LeadModel.sourceItems(_source)
                 .map((s) => DropdownMenuItem(value: s, child: Text(s)))
                 .toList(),
             onChanged: (v) => setState(() => _source = v),
@@ -445,25 +607,28 @@ class _EditLeadScreenState extends ConsumerState<EditLeadScreen> {
               ),
             ),
             const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: _pickFollowUpDate,
-                    icon: const Icon(Icons.event_outlined),
-                    label: Text(
-                      _nextFollowUp == null
-                          ? 'Set next follow-up (optional)'
-                          : DateFormat('dd MMM yyyy').format(_nextFollowUp!),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                FilledButton(
-                  onPressed: _savingFeedback ? null : _saveFeedback,
-                  child: const Text('Save'),
-                ),
-              ],
+            OutlinedButton.icon(
+              onPressed: _pickFollowUpDate,
+              icon: const Icon(Icons.event_outlined),
+              label: Text(
+                _nextFollowUp == null
+                    ? 'Set next follow-up / reminder (optional)'
+                    : DateFormat('dd MMM yyyy').format(_nextFollowUp!),
+              ),
+            ),
+            if (_nextFollowUp != null) ...[
+              const SizedBox(height: 10),
+              Text('Reminder time', style: Theme.of(context).textTheme.labelMedium),
+              const SizedBox(height: 6),
+              _reminderTimeChips(setState),
+            ],
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: _savingFeedback ? null : () => _saveFeedback(),
+                child: Text(_savingFeedback ? 'Saving...' : 'Save feedback / reminder'),
+              ),
             ),
             const SizedBox(height: 24),
             Text('History', style: Theme.of(context).textTheme.titleMedium),

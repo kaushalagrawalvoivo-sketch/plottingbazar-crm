@@ -5,6 +5,7 @@ import '../core/constants/roles.dart';
 import '../core/services/contact_action_service.dart';
 import '../models/lead_model.dart';
 import '../providers/lead_provider.dart';
+import '../screens/leads/edit_lead_screen.dart';
 
 /// Compact, single-row lead tile. Tapping it (outside selection mode)
 /// opens a bottom sheet with every action -- call, WhatsApp, view
@@ -191,18 +192,14 @@ class LeadCard extends ConsumerWidget {
   }
 
   Future<void> _call(BuildContext context, WidgetRef ref) async {
-    final opened = await ContactActionService.call(lead.phone);
-    if (opened && lead.id != null) {
-      ref.read(activityServiceProvider).log(
-            actionType: 'call_logged',
-            leadId: lead.id,
-            description:
-                '${lead.name}: call opened from list (open lead details to record the outcome)',
-          );
-    }
-    if (!context.mounted || opened) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Could not open the phone app.')),
+    // Navigate into the lead's details page and let it open the dialer --
+    // that page is what listens for the user returning from the call and
+    // then pops up the feedback/outcome/reminder sheet automatically.
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => EditLeadScreen(lead: lead, autoCall: true),
+      ),
     );
   }
 

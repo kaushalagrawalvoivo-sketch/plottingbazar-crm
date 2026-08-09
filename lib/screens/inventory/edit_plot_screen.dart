@@ -166,7 +166,7 @@ class _EditPlotScreenState extends ConsumerState<EditPlotScreen> {
                 controller: _rateController,
                 keyboardType: TextInputType.number,
                 decoration: const InputDecoration(
-                  labelText: "Rate Per Sq.Ft.",
+                  labelText: "Rate Per Sq.Yd.",
                   border: OutlineInputBorder(),
                 ),
                 validator: (value) {

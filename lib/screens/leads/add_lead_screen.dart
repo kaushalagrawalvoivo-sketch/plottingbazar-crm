@@ -155,7 +155,7 @@ class _AddLeadScreenState extends ConsumerState<AddLeadScreen> {
           DropdownButtonFormField<String>(
             value: _source,
             decoration: const InputDecoration(labelText: 'Lead source (optional)'),
-            items: LeadModel.sources
+            items: LeadModel.sourceItems(_source)
                 .map((s) => DropdownMenuItem(value: s, child: Text(s)))
                 .toList(),
             onChanged: (v) => setState(() => _source = v),

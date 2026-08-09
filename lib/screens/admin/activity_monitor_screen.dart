@@ -2,7 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/services/activity_service.dart';
+import '../../core/services/customer_service.dart';
+import '../../core/services/lead_service.dart';
 import '../../models/activity_log_model.dart';
+import '../customers/edit_customer_screen.dart';
+import '../leads/edit_lead_screen.dart';
 
 /// Admin-only live feed: shows what every employee is doing (calls logged,
 /// feedback added, leads assigned/created, WhatsApp messages opened) as it
@@ -16,6 +20,9 @@ class ActivityMonitorScreen extends StatefulWidget {
 
 class _ActivityMonitorScreenState extends State<ActivityMonitorScreen> {
   final _service = ActivityService();
+  final _leadService = LeadService();
+  final _customerService = CustomerService();
+  bool _opening = false;
 
   IconData _iconFor(String actionType) {
     switch (actionType) {
@@ -56,6 +63,55 @@ class _ActivityMonitorScreenState extends State<ActivityMonitorScreen> {
         return Colors.green.shade700;
       default:
         return Colors.grey;
+    }
+  }
+
+  /// Opens the lead or customer this activity happened on, if any. Some
+  /// activity rows (e.g. general notes) have neither id and simply aren't
+  /// tappable.
+  Future<void> _openDetails(ActivityLogModel activity) async {
+    if (_opening) return;
+    final leadId = activity.leadId;
+    final customerId = activity.customerId;
+    if (leadId == null && customerId == null) return;
+
+    setState(() => _opening = true);
+    try {
+      if (leadId != null) {
+        final lead = await _leadService.getLeadById(leadId);
+        if (!mounted) return;
+        if (lead == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('This lead no longer exists.')),
+          );
+          return;
+        }
+        await Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => EditLeadScreen(lead: lead)),
+        );
+        return;
+      }
+      final customer = await _customerService.getCustomerById(customerId!);
+      if (!mounted) return;
+      if (customer == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('This customer no longer exists.')),
+        );
+        return;
+      }
+      await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => EditCustomerScreen(customer: customer)),
+      );
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Could not open details: $error')));
+      }
+    } finally {
+      if (mounted) setState(() => _opening = false);
     }
   }
 
@@ -105,8 +161,11 @@ class _ActivityMonitorScreenState extends State<ActivityMonitorScreen> {
             separatorBuilder: (_, _) => const SizedBox(height: 8),
             itemBuilder: (_, index) {
               final activity = activities[index];
+              final isTappable =
+                  activity.leadId != null || activity.customerId != null;
               return Card(
                 child: ListTile(
+                  onTap: isTappable ? () => _openDetails(activity) : null,
                   leading: CircleAvatar(
                     backgroundColor: _colorFor(activity.actionType),
                     child: Icon(
@@ -117,12 +176,21 @@ class _ActivityMonitorScreenState extends State<ActivityMonitorScreen> {
                   ),
                   title: Text(activity.actorName),
                   subtitle: Text(activity.description),
-                  trailing: Text(
-                    activity.createdAt == null
-                        ? ''
-                        : DateFormat('hh:mm a\ndd MMM').format(activity.createdAt!),
-                    textAlign: TextAlign.right,
-                    style: const TextStyle(fontSize: 11),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        activity.createdAt == null
+                            ? ''
+                            : DateFormat('hh:mm a\ndd MMM').format(activity.createdAt!),
+                        textAlign: TextAlign.right,
+                        style: const TextStyle(fontSize: 11),
+                      ),
+                      if (isTappable) ...[
+                        const SizedBox(width: 4),
+                        const Icon(Icons.chevron_right, size: 18),
+                      ],
+                    ],
                   ),
                 ),
               );

@@ -54,7 +54,7 @@ class _FollowUpRemindersScreenState
         SnackBar(
           content: Text(
             allowed
-                ? 'Follow-up alerts are synced for 9:00 AM local time.'
+                ? 'Follow-up alerts are synced to each lead\'s reminder time.'
                 : 'Notifications are not enabled. You can continue using the in-app list.',
           ),
         ),
@@ -138,7 +138,7 @@ class _FollowUpRemindersScreenState
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Android and iOS reminders are scheduled for 9:00 AM local time. Browser reminders stay available in this list.',
+                    'Reminders fire at the time you set on each lead (9:00 AM if no time was chosen). Browser reminders stay available in this list.',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                   if (due.isNotEmpty) ...[

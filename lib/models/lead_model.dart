@@ -95,9 +95,42 @@ class LeadModel {
     'Referral',
     'Walk-in',
     'Website',
-    'Newspaper',
+    'YouTube',
     'Other',
   ];
+
+  /// Dropdown items for lead source, guaranteed to always contain [current]
+  /// even if it's an old/legacy value (e.g. "Newspaper" from before the
+  /// list changed) or a free-text value brought in via CSV import.
+  /// Without this, DropdownButtonFormField throws/crashes whenever the
+  /// lead's stored value isn't one of the fixed [sources] items - which is
+  /// why the dropdown appeared "not working" on some leads.
+  static List<String> sourceItems(String? current) {
+    final items = List<String>.from(sources);
+    if (current != null && current.isNotEmpty && !items.contains(current)) {
+      items.insert(0, current);
+    }
+    return items;
+  }
+
+  static const List<String> statuses = [
+    'New',
+    'Follow-up',
+    'Qualified',
+    'Booked',
+    'Lost',
+  ];
+
+  /// Same crash-safety as [sourceItems], for the status dropdown -- a
+  /// status value from CSV import or an older app version that isn't one
+  /// of [statuses] would otherwise crash the Edit Lead screen.
+  static List<String> statusItems(String current) {
+    final items = List<String>.from(statuses);
+    if (current.isNotEmpty && !items.contains(current)) {
+      items.insert(0, current);
+    }
+    return items;
+  }
 
   static const List<String> purposes = [
     'Investment',

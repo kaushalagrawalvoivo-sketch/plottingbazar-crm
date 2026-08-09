@@ -101,7 +101,7 @@ class _AddSiteScreenState extends ConsumerState<AddSiteScreen> {
                   decimal: true,
                 ),
                 decoration: const InputDecoration(
-                  labelText: "Price Per Sqft",
+                  labelText: "Price Per Sqyd",
                   border: OutlineInputBorder(),
                 ),
                 validator: (v) =>

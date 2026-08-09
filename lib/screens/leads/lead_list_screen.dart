@@ -18,7 +18,20 @@ class LeadListScreen extends ConsumerStatefulWidget {
   /// dashboard's "Overdue follow-ups" tile.
   final bool overdueOnly;
 
-  const LeadListScreen({super.key, this.initialStatus, this.overdueOnly = false});
+  /// Show only leads assigned to this user id -- used by the employee
+  /// performance leaderboard to drill into one employee's leads.
+  final String? assignedToUserId;
+
+  /// Display name of [assignedToUserId], shown in the app bar title.
+  final String? assignedToLabel;
+
+  const LeadListScreen({
+    super.key,
+    this.initialStatus,
+    this.overdueOnly = false,
+    this.assignedToUserId,
+    this.assignedToLabel,
+  });
 
   @override
   ConsumerState<LeadListScreen> createState() => _LeadListScreenState();
@@ -157,8 +170,11 @@ class _LeadListScreenState extends ConsumerState<LeadListScreen> {
       final query = _search.text.toLowerCase();
       final matchesStatus = _status == 'All' || lead.status == _status;
       final matchesOverdue = !widget.overdueOnly || lead.isFollowUpOverdue;
+      final matchesAssignee = widget.assignedToUserId == null ||
+          lead.assignedTo == widget.assignedToUserId;
       return matchesStatus &&
           matchesOverdue &&
+          matchesAssignee &&
           (lead.name.toLowerCase().contains(query) ||
               lead.phone.toLowerCase().contains(query) ||
               lead.site.toLowerCase().contains(query));
@@ -168,7 +184,11 @@ class _LeadListScreenState extends ConsumerState<LeadListScreen> {
         title: Text(
           _selectionMode
               ? '${_selectedIds.length} selected'
-              : (widget.overdueOnly ? 'Overdue follow-ups' : 'Leads'),
+              : widget.overdueOnly
+              ? 'Overdue follow-ups'
+              : widget.assignedToUserId != null
+              ? 'Leads · ${widget.assignedToLabel ?? 'Employee'}'
+              : 'Leads',
         ),
         actions: [
           if (_canManage)

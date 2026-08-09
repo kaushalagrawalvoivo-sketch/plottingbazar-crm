@@ -56,11 +56,11 @@ class PlotDetailsScreen extends StatelessWidget {
 
           _tile("Block", plot.block, Icons.grid_view),
 
-          _tile("Area", "${plot.area} Sq.Ft.", Icons.square_foot),
+          _tile("Area", "${plot.area} Sq.Yd.", Icons.square_foot),
 
           _tile(
             "Rate",
-            "₹ ${plot.rate.toStringAsFixed(2)} / Sq.Ft.",
+            "₹ ${plot.rate.toStringAsFixed(2)} / Sq.Yd.",
             Icons.currency_rupee,
           ),
 

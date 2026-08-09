@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../leads/lead_list_screen.dart';
+
 /// Admin-only: ranks every sales employee by calls made and leads
 /// converted, so the admin can see who's actually working the leads
 /// without having to dig through individual lead histories.
@@ -128,6 +130,15 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                   final stats = _stats[index];
                   return Card(
                     child: ListTile(
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => LeadListScreen(
+                            assignedToUserId: stats.id,
+                            assignedToLabel: stats.name,
+                          ),
+                        ),
+                      ),
                       leading: CircleAvatar(
                         backgroundColor: index == 0
                             ? Colors.amber
@@ -140,21 +151,27 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                         '${stats.convertedLeads} booked  •  '
                         '${stats.callsAllTime} calls total',
                       ),
-                      trailing: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.end,
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(
-                            '${stats.callsThisWeek}',
-                            style: const TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                            ),
+                          Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                '${stats.callsThisWeek}',
+                                style: const TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const Text(
+                                'calls this week',
+                                style: TextStyle(fontSize: 11),
+                              ),
+                            ],
                           ),
-                          const Text(
-                            'calls this week',
-                            style: TextStyle(fontSize: 11),
-                          ),
+                          const Icon(Icons.chevron_right),
                         ],
                       ),
                     ),

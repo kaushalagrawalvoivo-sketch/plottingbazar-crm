@@ -158,7 +158,7 @@ class _PlotListScreenState extends ConsumerState<PlotListScreen> {
                           child: ListTile(
                             title: Text("Plot ${plot.plotNo}"),
                             subtitle: Text(
-                              "Block ${plot.block} • ${plot.area} Sq.Ft.",
+                              "Block ${plot.block} • ${plot.area} Sq.Yd.",
                             ),
                             onTap: () {
                               Navigator.push(
