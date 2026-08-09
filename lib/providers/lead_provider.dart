@@ -34,7 +34,7 @@ class LeadNotifier extends StateNotifier<List<LeadModel>> {
     await _service.importLeads(leads);
     await _activity.log(
       actionType: ActivityLogModel.leadCreated,
-      description: 'Imported ${leads.length} leads from CSV',
+      description: 'Imported ${leads.length} leads from Excel',
     );
     await loadLeads();
   }

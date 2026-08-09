@@ -18,7 +18,13 @@ class _SplashScreenState extends State<SplashScreen> {
   void initState() {
     super.initState();
 
-    Timer(const Duration(seconds: 2), () {
+    // A brief pause just so the logo is actually visible -- this used to
+    // be a flat 2 seconds *every single time* the app opened (including
+    // every resume from being minimized), which was most of why the app
+    // felt slow to load. Supabase is already fully initialized before
+    // this screen ever runs (main.dart awaits it), so there's no real
+    // work left to wait for here.
+    Timer(const Duration(milliseconds: 500), () {
       if (!mounted) return;
 
       // Supabase persists the session to local storage by default, so if

@@ -1,6 +1,4 @@
-import 'dart:convert';
-
-import 'package:csv/csv.dart';
+import 'package:excel/excel.dart' as xls;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,6 +7,12 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/lead_model.dart';
 import '../../providers/lead_provider.dart';
 
+/// Bulk-imports leads from an Excel (.xlsx) file. CSV import used to live
+/// here -- it's gone entirely now (per product decision) so there's only
+/// one file format to support, and no more "which delimiter/encoding did
+/// this CSV use" guesswork. Sales/telecaller staff can just export
+/// straight from Excel/Google Sheets ("Download as .xlsx") and pick that
+/// file directly.
 class ImportLeadsScreen extends ConsumerStatefulWidget {
   const ImportLeadsScreen({super.key});
   @override
@@ -39,46 +43,44 @@ class _ImportLeadsScreenState extends ConsumerState<ImportLeadsScreen> {
 
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
-      allowedExtensions: ['csv'],
+      allowedExtensions: ['xlsx'],
       withData: true,
     );
     if (result == null || result.files.single.bytes == null) return;
 
     setState(() => _parsing = true);
     try {
-      var text = _decodeBytes(result.files.single.bytes!);
-      // Excel/Google Sheets exports on Windows very commonly prefix the
-      // file with a UTF-8 byte-order-mark and use \r\n line endings --
-      // left as-is, the BOM silently attaches itself to the first header
-      // ("name" becomes "\ufeffname"), so "Required columns" fails even
-      // though the file looks completely normal when opened. Both of
-      // those are almost certainly why import "did nothing" before.
-      if (text.isNotEmpty && text.codeUnitAt(0) == 0xFEFF) {
-        text = text.substring(1);
-      }
-      text = text.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
-
-      // A hand-rolled `line.split(',')` (the previous approach) breaks on
-      // any field that contains a comma inside quotes -- e.g. an address
-      // like "Plot 4, Sector 12" -- which silently shifts every column
-      // after it. The csv package handles quoting correctly.
-      // NOTE: this project's csv package version (8.x) removed the old
-      // CsvToListConverter class entirely -- decoding now goes through
-      // the Csv class instead. dynamicTyping stays false so every cell
-      // comes back as a String, matching the old shouldParseNumbers:
-      // false behaviour, and line-ending detection is automatic.
-      final rows = Csv(dynamicTyping: false).decode(text);
-      final nonEmptyRows = rows
-          .where((row) => row.any((cell) => cell.toString().trim().isNotEmpty))
-          .toList();
-
-      if (nonEmptyRows.length < 2) {
-        throw const FormatException('CSV has no lead rows.');
+      final workbook = xls.Excel.decodeBytes(result.files.single.bytes!);
+      if (workbook.tables.isEmpty) {
+        throw const FormatException('This Excel file has no sheets.');
       }
 
-      final headers = nonEmptyRows.first
-          .map((cell) => _clean(cell.toString()).toLowerCase())
+      // Use the first sheet that actually has rows, not just whichever
+      // sheet name comes first -- some exports leave an empty default
+      // "Sheet1" and put the real data on a second tab.
+      xls.Sheet? sheet;
+      for (final name in workbook.tables.keys) {
+        final candidate = workbook.tables[name]!;
+        if (candidate.maxRows > 0) {
+          sheet = candidate;
+          break;
+        }
+      }
+      sheet ??= workbook.tables[workbook.tables.keys.first];
+
+      // Convert every row into cleaned strings up front (same shape the
+      // old CSV parser worked with) and drop rows that are entirely
+      // blank -- Excel sheets very commonly have trailing empty rows.
+      final rows = sheet!.rows
+          .map((row) => row.map(_cellText).toList())
+          .where((row) => row.any((cell) => cell.isNotEmpty))
           .toList();
+
+      if (rows.length < 2) {
+        throw const FormatException('This Excel sheet has no lead rows.');
+      }
+
+      final headers = rows.first.map((h) => h.toLowerCase()).toList();
       final missing = ['name', 'phone', 'site']
           .where((required) => !headers.contains(required))
           .toList();
@@ -89,10 +91,10 @@ class _ImportLeadsScreenState extends ConsumerState<ImportLeadsScreen> {
         );
       }
 
-      String cell(List<dynamic> row, String name) {
+      String cell(List<String> row, String name) {
         final index = headers.indexOf(name);
         if (index < 0 || index >= row.length) return '';
-        return _clean(row[index].toString());
+        return row[index];
       }
 
       // Resolve "assigned_to" by Supabase user id, email, or full name --
@@ -134,13 +136,11 @@ class _ImportLeadsScreenState extends ConsumerState<ImportLeadsScreen> {
       final parsed = <LeadModel>[];
       var skipped = 0;
       var raggedRows = 0;
-      for (final row in nonEmptyRows.skip(1)) {
-        // A row with a different number of columns than the header means
-        // a stray/missing comma somewhere shifted every value after it --
-        // e.g. an unquoted address like "Plot 4, Sector 12" in a CSV that
-        // wasn't actually quoted. That reliably makes name/phone come back
-        // empty even though the row "looks" fine, so it's worth telling
-        // the user apart from a row that's genuinely missing data.
+      for (final row in rows.skip(1)) {
+        // A row with a different number of columns than the header
+        // usually means a merged/split cell somewhere in the sheet --
+        // worth flagging separately from a row that's genuinely missing
+        // data.
         if (row.length != headers.length) raggedRows++;
         var name = cell(row, 'name');
         final phone = cell(row, 'phone');
@@ -170,11 +170,11 @@ class _ImportLeadsScreenState extends ConsumerState<ImportLeadsScreen> {
       }
 
       if (parsed.isEmpty) {
-        final sampleRow = nonEmptyRows.length > 1 ? nonEmptyRows[1] : null;
+        final sampleRow = rows.length > 1 ? rows[1] : null;
         final raggedNote = raggedRows > 0
             ? ' $raggedRows row(s) had a different number of columns than '
-                  'the header (${headers.length}) -- check for an unquoted '
-                  'comma inside a value, e.g. an address.'
+                  'the header (${headers.length}) -- check for a merged or '
+                  'split cell.'
             : '';
         throw FormatException(
           'No valid rows found -- every row is missing a phone number. '
@@ -190,33 +190,51 @@ class _ImportLeadsScreenState extends ConsumerState<ImportLeadsScreen> {
         _fileName = result.files.single.name;
       });
     } catch (error) {
-      if (mounted) setState(() => _error = 'CSV error: $error');
+      if (mounted) setState(() => _error = 'Excel error: $error');
     } finally {
       if (mounted) setState(() => _parsing = false);
     }
   }
 
+  /// Converts one Excel cell to a plain, trimmed string regardless of how
+  /// it was typed in the sheet -- text, a typed-in number (phone numbers
+  /// are very often entered as numbers, which would otherwise show up as
+  /// "9876543210.0"), a date, or a formula result.
+  String _cellText(xls.Data? cell) {
+    final value = cell?.value;
+    if (value == null) return '';
+    if (value is xls.TextCellValue) return _clean(value.value.toString());
+    if (value is xls.IntCellValue) return value.value.toString();
+    if (value is xls.DoubleCellValue) {
+      final d = value.value;
+      return _clean(d == d.roundToDouble() ? d.toInt().toString() : d.toString());
+    }
+    if (value is xls.BoolCellValue) return value.value.toString();
+    if (value is xls.DateCellValue) {
+      return '${value.year.toString().padLeft(4, '0')}-'
+          '${value.month.toString().padLeft(2, '0')}-'
+          '${value.day.toString().padLeft(2, '0')}';
+    }
+    if (value is xls.DateTimeCellValue) {
+      final dt = value.asDateTimeLocal();
+      return '${dt.year.toString().padLeft(4, '0')}-'
+          '${dt.month.toString().padLeft(2, '0')}-'
+          '${dt.day.toString().padLeft(2, '0')}';
+    }
+    if (value is xls.FormulaCellValue) return _clean(value.formula);
+    return _clean(value.toString());
+  }
+
   /// Trims a cell and strips invisible characters that regularly sneak
-  /// into CSVs exported from Excel/Google Sheets/WhatsApp copy-paste --
-  /// a non-breaking space (U+00A0), zero-width space (U+200B) or another
-  /// stray byte-order-mark on a header makes it fail to match "name" even
-  /// though it looks completely normal on screen.
+  /// into spreadsheets exported from other tools -- a non-breaking space
+  /// (U+00A0), zero-width space (U+200B) or stray byte-order-mark makes a
+  /// header fail to match "name" even though it looks completely normal
+  /// on screen.
   String _clean(String value) => value
       .replaceAll('\uFEFF', '')
       .replaceAll('\u200B', '')
       .replaceAll('\u00A0', ' ')
       .trim();
-
-  /// Tries UTF-8 first (handles Hindi/other non-ASCII text correctly);
-  /// falls back to Latin-1 for CSVs saved by older Excel versions in a
-  /// different encoding, instead of throwing and leaving import "stuck".
-  String _decodeBytes(List<int> bytes) {
-    try {
-      return const Utf8Codec(allowMalformed: false).decode(bytes);
-    } catch (_) {
-      return const Latin1Codec().decode(bytes);
-    }
-  }
 
   Future<void> _import() async {
     setState(() {
@@ -242,9 +260,9 @@ class _ImportLeadsScreenState extends ConsumerState<ImportLeadsScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'CSV columns: name, phone, site. Optional: status, source, '
-            'follow_up_date, assigned_to (email or full name). If name is '
-            'left blank, the phone number is used as the name.',
+            'Excel (.xlsx) columns: name, phone, site. Optional: status, '
+            'source, follow_up_date, assigned_to (email or full name). If '
+            'name is left blank, the phone number is used as the name.',
           ),
           const SizedBox(height: 16),
           OutlinedButton.icon(
@@ -256,7 +274,7 @@ class _ImportLeadsScreenState extends ConsumerState<ImportLeadsScreen> {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Icon(Icons.upload_file),
-            label: Text(_parsing ? 'Reading file...' : 'Choose CSV'),
+            label: Text(_parsing ? 'Reading file...' : 'Choose Excel file'),
           ),
           if (_fileName != null) ...[
             const SizedBox(height: 8),
@@ -287,7 +305,7 @@ class _ImportLeadsScreenState extends ConsumerState<ImportLeadsScreen> {
             const SizedBox(height: 4),
             Text(
               '$_raggedRows row${_raggedRows == 1 ? '' : 's'} had an unexpected number '
-              'of columns -- double-check for an unquoted comma inside a value.',
+              'of columns -- double-check for a merged or split cell.',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.orange[800]),
             ),
           ],

@@ -251,7 +251,7 @@ class _LeadListScreenState extends ConsumerState<LeadListScreen> {
                       ),
                     ),
                     icon: const Icon(Icons.upload_file),
-                    label: const Text('Import CSV'),
+                    label: const Text('Import from Excel'),
                   ),
                   const SizedBox(height: 12),
                 ],
