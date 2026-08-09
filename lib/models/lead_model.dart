@@ -6,6 +6,8 @@ class LeadModel {
   final String status;
   final String? assignedTo;
   final String? source;
+  final String? purpose;
+  final double? budget;
   final DateTime? followUpDate;
   final DateTime? createdAt;
 
@@ -17,6 +19,8 @@ class LeadModel {
     required this.status,
     this.assignedTo,
     this.source,
+    this.purpose,
+    this.budget,
     this.followUpDate,
     this.createdAt,
   });
@@ -35,6 +39,10 @@ class LeadModel {
     status: json['status'] ?? 'New',
     assignedTo: json['assigned_to']?.toString(),
     source: json['source'],
+    purpose: json['purpose'],
+    budget: json['budget'] == null
+        ? null
+        : double.tryParse(json['budget'].toString()),
     followUpDate: json['follow_up_date'] == null
         ? null
         : DateTime.tryParse(json['follow_up_date'].toString()),
@@ -51,6 +59,8 @@ class LeadModel {
     'status': status,
     'assigned_to': assignedTo,
     'source': source,
+    'purpose': purpose,
+    'budget': budget,
     'follow_up_date': followUpDate?.toIso8601String(),
   };
 
@@ -61,6 +71,8 @@ class LeadModel {
     String? status,
     String? assignedTo,
     String? source,
+    String? purpose,
+    double? budget,
     DateTime? followUpDate,
   }) => LeadModel(
     id: id,
@@ -70,6 +82,8 @@ class LeadModel {
     status: status ?? this.status,
     assignedTo: assignedTo ?? this.assignedTo,
     source: source ?? this.source,
+    purpose: purpose ?? this.purpose,
+    budget: budget ?? this.budget,
     followUpDate: followUpDate ?? this.followUpDate,
     createdAt: createdAt,
   );
@@ -82,6 +96,15 @@ class LeadModel {
     'Walk-in',
     'Website',
     'Newspaper',
+    'Other',
+  ];
+
+  static const List<String> purposes = [
+    'Investment',
+    'Self Use',
+    'Resale',
+    'Commercial',
+    'Agricultural',
     'Other',
   ];
 }

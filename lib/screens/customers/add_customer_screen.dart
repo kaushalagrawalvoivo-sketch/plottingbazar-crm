@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/constants/roles.dart';
 import '../../models/customer_model.dart';
 import '../../providers/customer_provider.dart';
 
@@ -21,7 +22,7 @@ class _AddCustomerScreenState extends ConsumerState<AddCustomerScreen> {
   final _addressController = TextEditingController();
 
   bool _loading = false;
-  bool _isAdmin = false;
+  bool _canManage = false;
   String? _assignedTo;
   List<Map<String, dynamic>> _users = [];
 
@@ -35,22 +36,25 @@ class _AddCustomerScreenState extends ConsumerState<AddCustomerScreen> {
     final db = Supabase.instance.client;
     final userId = db.auth.currentUser?.id;
     if (userId == null) return;
-    // A non-admin always owns the customers they add.
+    // A non-manager always owns the customers they add.
     _assignedTo = userId;
     final profile = await db
         .from('profiles')
         .select('role')
         .eq('id', userId)
         .maybeSingle();
-    if (profile?['role'] != 'admin' || !mounted) return;
+    if (!AppRoles.canManage(profile?['role']?.toString()) || !mounted) return;
     final users = await db
         .from('profiles')
-        .select('id, full_name, email')
+        .select('id, full_name, email, role')
         .order('full_name');
+    final assignable = List<Map<String, dynamic>>.from(
+      users,
+    ).where((u) => AppRoles.assignable.contains(u['role']?.toString())).toList();
     if (mounted) {
       setState(() {
-        _isAdmin = true;
-        _users = List<Map<String, dynamic>>.from(users);
+        _canManage = true;
+        _users = assignable;
       });
     }
   }
@@ -144,7 +148,7 @@ class _AddCustomerScreenState extends ConsumerState<AddCustomerScreen> {
                   border: OutlineInputBorder(),
                 ),
               ),
-              if (_isAdmin) ...[
+              if (_canManage) ...[
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
                   value: _assignedTo,

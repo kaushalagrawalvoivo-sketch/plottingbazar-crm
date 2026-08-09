@@ -42,8 +42,10 @@ class _EditLeadScreenState extends ConsumerState<EditLeadScreen> {
   late final TextEditingController _name;
   late final TextEditingController _phone;
   late final TextEditingController _site;
+  late final TextEditingController _budget;
   late String _status;
   String? _source;
+  String? _purpose;
   bool _saving = false;
 
   final _callLogService = CallLogService();
@@ -61,8 +63,12 @@ class _EditLeadScreenState extends ConsumerState<EditLeadScreen> {
     _name = TextEditingController(text: widget.lead.name);
     _phone = TextEditingController(text: widget.lead.phone);
     _site = TextEditingController(text: widget.lead.site);
+    _budget = TextEditingController(
+      text: widget.lead.budget == null ? '' : widget.lead.budget!.toStringAsFixed(0),
+    );
     _status = widget.lead.status;
     _source = widget.lead.source;
+    _purpose = widget.lead.purpose;
     _loadHistory();
   }
 
@@ -71,6 +77,7 @@ class _EditLeadScreenState extends ConsumerState<EditLeadScreen> {
     _name.dispose();
     _phone.dispose();
     _site.dispose();
+    _budget.dispose();
     _feedbackController.dispose();
     super.dispose();
   }
@@ -124,6 +131,8 @@ class _EditLeadScreenState extends ConsumerState<EditLeadScreen> {
               site: _site.text.trim(),
               status: _status,
               source: _source,
+              purpose: _purpose,
+              budget: double.tryParse(_budget.text.trim()),
             ),
             previousStatus: previousStatus,
           );
@@ -315,6 +324,8 @@ class _EditLeadScreenState extends ConsumerState<EditLeadScreen> {
                 site: _site.text.trim(),
                 status: _status,
                 source: _source,
+                purpose: _purpose,
+                budget: double.tryParse(_budget.text.trim()),
                 followUpDate: _nextFollowUp,
               ),
             );
@@ -373,6 +384,21 @@ class _EditLeadScreenState extends ConsumerState<EditLeadScreen> {
                 .map((s) => DropdownMenuItem(value: s, child: Text(s)))
                 .toList(),
             onChanged: (v) => setState(() => _source = v),
+          ),
+          const SizedBox(height: 14),
+          DropdownButtonFormField<String>(
+            value: _purpose,
+            decoration: const InputDecoration(labelText: 'Purpose'),
+            items: LeadModel.purposes
+                .map((p) => DropdownMenuItem(value: p, child: Text(p)))
+                .toList(),
+            onChanged: (v) => setState(() => _purpose = v),
+          ),
+          const SizedBox(height: 14),
+          TextFormField(
+            controller: _budget,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(labelText: 'Budget in ₹'),
           ),
           const SizedBox(height: 16),
           Row(

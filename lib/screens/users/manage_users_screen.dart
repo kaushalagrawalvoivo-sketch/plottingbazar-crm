@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/constants/roles.dart';
+
 class ManageUsersScreen extends StatefulWidget {
   const ManageUsersScreen({super.key});
 
@@ -83,9 +85,9 @@ class _ManageUsersScreenState extends State<ManageUsersScreen> {
                 final user = _users[index];
                 final name = (user['full_name'] as String?)?.trim();
                 final email = user['email']?.toString() ?? '';
-                final role = user['role']?.toString() == 'admin'
-                    ? 'admin'
-                    : 'sales';
+                final role = AppRoles.all.contains(user['role']?.toString())
+                    ? user['role'].toString()
+                    : AppRoles.sales;
                 return Card(
                   child: ListTile(
                     leading: CircleAvatar(
@@ -101,10 +103,14 @@ class _ManageUsersScreenState extends State<ManageUsersScreen> {
                     subtitle: Text(email),
                     trailing: DropdownButton<String>(
                       value: role,
-                      items: const [
-                        DropdownMenuItem(value: 'admin', child: Text('Admin')),
-                        DropdownMenuItem(value: 'sales', child: Text('Sales')),
-                      ],
+                      items: AppRoles.all
+                          .map(
+                            (r) => DropdownMenuItem(
+                              value: r,
+                              child: Text(AppRoles.label(r)),
+                            ),
+                          )
+                          .toList(),
                       onChanged: (value) => value == null || value == role
                           ? null
                           : _changeRole(user, value),

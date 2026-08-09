@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/constants/roles.dart';
 import '../../providers/customer_provider.dart';
 import '../../models/customer_model.dart';
 import 'add_customer_screen.dart';
@@ -16,6 +18,7 @@ class CustomerListScreen extends ConsumerStatefulWidget {
 
 class _CustomerListScreenState extends ConsumerState<CustomerListScreen> {
   String _search = "";
+  String? _role;
 
   @override
   void initState() {
@@ -23,7 +26,20 @@ class _CustomerListScreenState extends ConsumerState<CustomerListScreen> {
 
     Future.microtask(() {
       ref.read(customerProvider.notifier).loadCustomers();
+      _loadRole();
     });
+  }
+
+  Future<void> _loadRole() async {
+    final db = Supabase.instance.client;
+    final userId = db.auth.currentUser?.id;
+    if (userId == null) return;
+    final profile = await db
+        .from('profiles')
+        .select('role')
+        .eq('id', userId)
+        .maybeSingle();
+    if (mounted) setState(() => _role = profile?['role']?.toString());
   }
 
   @override
@@ -113,15 +129,16 @@ class _CustomerListScreenState extends ConsumerState<CustomerListScreen> {
                                   await notifier.deleteCustomer(customer.id!);
                                 }
                               },
-                              itemBuilder: (_) => const [
-                                PopupMenuItem(
+                              itemBuilder: (_) => [
+                                const PopupMenuItem(
                                   value: "edit",
                                   child: Text("Edit"),
                                 ),
-                                PopupMenuItem(
-                                  value: "delete",
-                                  child: Text("Delete"),
-                                ),
+                                if (AppRoles.canDelete(_role))
+                                  const PopupMenuItem(
+                                    value: "delete",
+                                    child: Text("Delete"),
+                                  ),
                               ],
                             ),
                           ),

@@ -79,6 +79,15 @@ flutter pub get
         detection)
       - Lets each user update their own display name, with a trigger
         that blocks any attempt to self-assign the `admin` role
+   4. `supabase/20260810_roles_and_features.sql` **(new — run this
+      too)**:
+      - Widens `profiles.role` to 4 values: `admin`, `manager`,
+        `sales`, `telecaller`
+      - `purpose` and `budget` columns added to `leads`
+      - Every "admin-only" RLS policy is widened to "admin or manager"
+      - New delete policies: Sales can delete their own leads/
+        customers; Telecaller explicitly cannot (no delete policy
+        exists for that role)
 3. Existing customers created **before** this migration will have
    `assigned_to = NULL`. An admin should open each one (Customers →
    Edit) and assign it to the right salesperson, otherwise it will only
@@ -118,22 +127,35 @@ the free approach.
 
 ## 5. Roles & data access
 
-Two roles: `admin` and the default sales role (managed in **Manage
-Users**, admin-only screen).
+Four roles, managed in **Manage Users** (Admin/Manager only):
 
-| Data          | Admin sees        | Sales employee sees                          |
-|---------------|--------------------|-----------------------------------------------|
-| Leads         | All                | Only leads assigned to them                    |
-| Customers     | All                | Only customers assigned to them                |
-| Bookings      | All                | Only bookings for their own customers          |
-| Plots / Sites | All (full CRUD)   | Read-only, all (needed to create bookings)     |
-| Call logs     | All                | Only for their own assigned leads              |
-| Feedback      | All                | Only for their own assigned leads              |
-| Activity feed | Full live feed    | Not shown (admin-only screen)                  |
+- **Admin** and **Manager** are functionally identical — full access to
+  everything, including managing users. Manager exists purely as a
+  separate job-title label for reporting; it does not have reduced
+  permissions anywhere.
+- **Sales** — sees and can act on only their own assigned leads and
+  customers, including deleting them.
+- **Telecaller** — same assigned-only visibility as Sales (can call,
+  log calls, add feedback, change status), but **cannot delete** leads
+  or customers. This is enforced at the database level (see the new
+  RLS policies in `20260810_roles_and_features.sql`), not just hidden
+  in the UI — a telecaller calling the API directly still can't delete.
+
+| Data          | Admin / Manager   | Sales                          | Telecaller                     |
+|---------------|--------------------|---------------------------------|----------------------------------|
+| Leads         | All, full CRUD    | Own assigned, full CRUD          | Own assigned, no delete          |
+| Customers     | All, full CRUD    | Own assigned, full CRUD          | Own assigned, no delete          |
+| Bookings      | All                | Only for their own customers    | Only for their own customers    |
+| Plots / Sites | All (full CRUD)   | Read-only (needed for bookings) | Read-only (needed for bookings) |
+| Call logs     | All                | Only for their own assigned leads | Only for their own assigned leads |
+| Feedback      | All                | Only for their own assigned leads | Only for their own assigned leads |
+| Activity feed / Leaderboard / Manage Users | Yes | No | No |
 
 This is enforced with Postgres Row Level Security (RLS) policies, so
 even a modified/compromised client can't bypass it — the restriction
-lives in the database, not just the app's UI.
+lives in the database, not just the app's UI. A database trigger also
+blocks any non-admin/manager from granting themselves a higher role,
+even by calling the update API directly.
 
 ---
 
@@ -164,8 +186,10 @@ lib/
   screens/profile/    profile_screen.dart — edit your name, change
                       your password
 supabase/
-  20260713_lead_assignment.sql   (existing)
-  20260808_crm_upgrade.sql       (new — see section 3)
+  20260713_lead_assignment.sql        (existing)
+  20260808_crm_upgrade.sql            (batch 1 — see section 3)
+  20260809_professional_features.sql  (batch 2 — see section 3)
+  20260810_roles_and_features.sql     (batch 3 — see section 3)
 ```
 
 ---
@@ -191,6 +215,8 @@ supabase/
 - Added a reliable, in-app **"Install App" button** and a centralized,
   **customizable app theme** (see sections 9 and 10 below).
 - Added a full round of professional CRM features — see section 8.
+- Added 4 roles, lead purpose/budget fields, bottom-navigation, and
+  compact lead tiles — see section 8a.
 
 ## 8. Professional features added
 
@@ -223,6 +249,36 @@ Flutter) — no paid API or third-party service was introduced.
   Role changes remain admin-only, enforced by a database trigger (not
   just hidden in the UI), so a sales user can't grant themselves admin
   even by calling the API directly.
+
+## 8a. Roles, lead details, and navigation overhaul
+
+- **Four roles** — `admin`, `manager`, `sales`, `telecaller`. Manager
+  is a full second admin tier (same permissions, including Manage
+  Users) — it exists purely as a separate job title for reporting.
+  Telecaller has the same assigned-only visibility as Sales but cannot
+  delete leads or customers (enforced in the database, not just the
+  UI — see section 5).
+- **Purpose & Budget on leads** — Add/Edit Lead now has a Purpose
+  dropdown (Investment, Self Use, Resale, Commercial, Agricultural,
+  Other) and a Budget field (₹). Both are included in CSV export.
+- **Assignable-user pickers now only show Sales/Telecaller** — the
+  "Assign to" dropdowns on leads and customers used to list every
+  profile including Admin/Manager; they're now filtered so a lead can
+  only be handed to actual field staff.
+- **Bottom navigation dock** replaces the side drawer — Home, Leads,
+  Customers, Reminders, and More (Inventory, Sites, Bookings, Reports,
+  and the admin/manager-only screens) are now one tap away at the
+  bottom of the screen, which is easier to reach one-handed on mobile
+  than a side drawer.
+- **Dashboard tiles are now tappable** — tapping "New", "Follow-ups",
+  "Booked", or "Overdue follow-ups" jumps straight into the Leads list
+  pre-filtered to that exact view.
+- **Compact lead list** — each lead is now a single, short row (name,
+  phone, site, status) instead of a tall card with all its buttons
+  showing — noticeably more leads fit on a phone screen at once.
+  Tapping a row opens a bottom sheet with every action (view details,
+  call, WhatsApp, delete-if-permitted) instead of dedicated buttons
+  cluttering the row.
 
 ## 9. Fixing the PWA install popup
 
@@ -290,3 +346,8 @@ Everything visual is centralized in **`lib/core/theme/app_theme.dart`**:
 - The leaderboard and reports screens fetch and aggregate client-side,
   which is fine at small-to-medium team size. If the team grows large,
   move the aggregation into a Postgres view/RPC for speed.
+- The leaderboard currently ranks everyone together; it doesn't split
+  Sales vs Telecaller into separate boards yet.
+- Purpose/Budget aren't shown in the compact lead row or the "Recent
+  leads" list (kept those minimal on purpose for scanability) — they
+  are visible on the lead detail screen and in CSV export.

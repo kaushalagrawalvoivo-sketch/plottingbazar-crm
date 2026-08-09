@@ -2,21 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/constants/roles.dart';
 import '../../providers/lead_provider.dart';
 import '../../widgets/pwa_install_banner.dart';
 import '../admin/activity_monitor_screen.dart';
 import '../admin/leaderboard_screen.dart';
-import '../auth/login_screen.dart';
-import '../bookings/booking_list_screen.dart';
-import '../customers/customer_list_screen.dart';
-import '../inventory/plot_list_screen.dart';
 import '../leads/lead_list_screen.dart';
-import '../profile/profile_screen.dart';
-import '../reminders/follow_up_reminders_screen.dart';
-import '../reports/reports_screen.dart';
-import '../sites/site_list_screen.dart';
 import '../users/manage_users_screen.dart';
 
+/// The "Home" tab content shown inside [MainShell]'s bottom navigation.
+/// This is body-only (no Scaffold/AppBar of its own) so it drops
+/// straight into the shell's IndexedStack.
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
 
@@ -25,7 +21,8 @@ class DashboardScreen extends ConsumerStatefulWidget {
 }
 
 class _DashboardScreenState extends ConsumerState<DashboardScreen> {
-  bool _isAdmin = false;
+  bool _canManage = false;
+
   @override
   void initState() {
     super.initState();
@@ -41,246 +38,188 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         .select('role')
         .eq('id', userId)
         .maybeSingle();
-    if (mounted) setState(() => _isAdmin = profile?['role'] == 'admin');
+    if (mounted) {
+      setState(() => _canManage = AppRoles.canManage(profile?['role']?.toString()));
+    }
   }
 
-  Future<void> _open(Widget screen) async {
-    await Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
-    if (mounted) await ref.read(leadProvider.notifier).refresh();
+  void _open(Widget screen) {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
   }
 
-  Future<void> _logout() async {
-    await Supabase.instance.client.auth.signOut();
-    if (!mounted) return;
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
-      (_) => false,
+  void _openLeads({String? status, bool overdueOnly = false}) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            LeadListScreen(initialStatus: status, overdueOnly: overdueOnly),
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     final leads = ref.watch(leadProvider);
-    return Scaffold(
-      appBar: AppBar(title: const Text('PlottingBazaar CRM')),
-      drawer: Drawer(
-        child: SafeArea(
-          child: ListView(
+    return RefreshIndicator(
+      onRefresh: () => ref.read(leadProvider.notifier).refresh(),
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 90),
+        children: [
+          const PwaInstallBanner(),
+          Text(
+            'Sales overview',
+            style: Theme.of(context).textTheme.headlineSmall,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Tap a tile to see those leads',
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: Colors.grey),
+          ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
             children: [
-              const DrawerHeader(
-                decoration: BoxDecoration(color: Color(0xff101828)),
-                child: Text(
-                  'PlottingBazaar\\nCRM',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+              _metric(
+                'Total leads',
+                leads.length,
+                Icons.groups,
+                onTap: () => _openLeads(),
               ),
-              _nav(
-                Icons.groups_outlined,
-                'Leads',
-                () => _open(const LeadListScreen()),
+              _metric(
+                'New',
+                leads.where((lead) => lead.status == 'New').length,
+                Icons.person_add,
+                onTap: () => _openLeads(status: 'New'),
               ),
-              _nav(
-                Icons.person_outline,
-                'Customers',
-                () => _open(const CustomerListScreen()),
+              _metric(
+                'Follow-ups',
+                leads.where((lead) => lead.status == 'Follow-up').length,
+                Icons.calendar_today,
+                onTap: () => _openLeads(status: 'Follow-up'),
               ),
-              _nav(
-                Icons.grid_view_outlined,
-                'Inventory',
-                () => _open(const PlotListScreen()),
+              _metric(
+                'Booked',
+                leads.where((lead) => lead.status == 'Booked').length,
+                Icons.home_work,
+                onTap: () => _openLeads(status: 'Booked'),
               ),
-              _nav(
-                Icons.location_on_outlined,
-                'Sites',
-                () => _open(const SiteListScreen()),
+              _metric(
+                'Overdue follow-ups',
+                leads.where((lead) => lead.isFollowUpOverdue).length,
+                Icons.warning_amber_rounded,
+                color: Colors.red,
+                onTap: () => _openLeads(overdueOnly: true),
               ),
-              _nav(
-                Icons.assignment_turned_in_outlined,
-                'Bookings',
-                () => _open(const BookingListScreen()),
-              ),
-              _nav(
-                Icons.analytics_outlined,
-                'Reports',
-                () => _open(const ReportsScreen()),
-              ),
-              _nav(
-                Icons.notifications_active_outlined,
-                'Reminders',
-                () => _open(const FollowUpRemindersScreen()),
-              ),
-              if (_isAdmin)
-                _nav(
-                  Icons.manage_accounts_outlined,
-                  'Manage users',
-                  () => _open(const ManageUsersScreen()),
-                ),
-              if (_isAdmin)
-                _nav(
-                  Icons.monitor_heart_outlined,
-                  'Live activity monitor',
-                  () => _open(const ActivityMonitorScreen()),
-                ),
-              if (_isAdmin)
-                _nav(
-                  Icons.leaderboard_outlined,
-                  'Employee performance',
-                  () => _open(const LeaderboardScreen()),
-                ),
-              const Divider(),
-              _nav(Icons.person_outline, 'My profile', () => _open(const ProfileScreen())),
-              _nav(Icons.logout, 'Logout', _logout),
             ],
           ),
-        ),
-      ),
-      body: RefreshIndicator(
-        onRefresh: () => ref.read(leadProvider.notifier).refresh(),
-        child: ListView(
-          padding: const EdgeInsets.all(20),
-          children: [
-            const PwaInstallBanner(),
-            Text(
-              'Sales overview',
-              style: Theme.of(context).textTheme.headlineSmall,
-            ),
-            const SizedBox(height: 16),
-            Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              children: [
-                _metric('Total leads', leads.length, Icons.groups),
-                _metric(
-                  'New',
-                  leads.where((lead) => lead.status == 'New').length,
-                  Icons.person_add,
-                ),
-                _metric(
-                  'Follow-ups',
-                  leads.where((lead) => lead.status == 'Follow-up').length,
-                  Icons.calendar_today,
-                ),
-                _metric(
-                  'Booked',
-                  leads.where((lead) => lead.status == 'Booked').length,
-                  Icons.home_work,
-                ),
-                _metric(
-                  'Overdue follow-ups',
-                  leads.where((lead) => lead.isFollowUpOverdue).length,
-                  Icons.warning_amber_rounded,
-                  color: Colors.red,
-                ),
-              ],
-            ),
-            if (_isAdmin) ...[
-              const SizedBox(height: 20),
-              Card(
-                child: ListTile(
-                  leading: const CircleAvatar(
-                    child: Icon(Icons.manage_accounts_outlined),
-                  ),
-                  title: const Text('Manage users'),
-                  subtitle: const Text(
-                    'View users and update their access role',
-                  ),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () => _open(const ManageUsersScreen()),
-                ),
-              ),
-              const SizedBox(height: 10),
-              Card(
-                child: ListTile(
-                  leading: const CircleAvatar(
-                    backgroundColor: Colors.green,
-                    child: Icon(Icons.monitor_heart_outlined, color: Colors.white),
-                  ),
-                  title: const Text('Live activity monitor'),
-                  subtitle: const Text(
-                    'See every call, feedback and WhatsApp message in real time',
-                  ),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () => _open(const ActivityMonitorScreen()),
-                ),
-              ),
-              const SizedBox(height: 10),
-              Card(
-                child: ListTile(
-                  leading: const CircleAvatar(
-                    backgroundColor: Colors.amber,
-                    child: Icon(Icons.leaderboard_outlined, color: Colors.white),
-                  ),
-                  title: const Text('Employee performance'),
-                  subtitle: const Text(
-                    'Calls made and leads converted, ranked by employee',
-                  ),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () => _open(const LeaderboardScreen()),
-                ),
-              ),
-            ],
-            const SizedBox(height: 28),
-            Text('Recent leads', style: Theme.of(context).textTheme.titleLarge),
+          if (_canManage) ...[
+            const SizedBox(height: 20),
             Card(
-              child: leads.isEmpty
-                  ? const Padding(
-                      padding: EdgeInsets.all(24),
-                      child: Center(child: Text('No leads assigned to you.')),
-                    )
-                  : Column(
-                      children: leads
-                          .take(6)
-                          .map<Widget>(
-                            (lead) => ListTile(
-                              title: Text(lead.name),
-                              subtitle: Text('${lead.phone} - ${lead.site}'),
-                              trailing: Chip(label: Text(lead.status)),
-                            ),
-                          )
-                          .toList(),
-                    ),
+              child: ListTile(
+                leading: const CircleAvatar(
+                  child: Icon(Icons.manage_accounts_outlined),
+                ),
+                title: const Text('Manage users'),
+                subtitle: const Text(
+                  'View users and update their access role',
+                ),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => _open(const ManageUsersScreen()),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Card(
+              child: ListTile(
+                leading: const CircleAvatar(
+                  backgroundColor: Colors.green,
+                  child: Icon(Icons.monitor_heart_outlined, color: Colors.white),
+                ),
+                title: const Text('Live activity monitor'),
+                subtitle: const Text(
+                  'See every call, feedback and WhatsApp message in real time',
+                ),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => _open(const ActivityMonitorScreen()),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Card(
+              child: ListTile(
+                leading: const CircleAvatar(
+                  backgroundColor: Colors.amber,
+                  child: Icon(Icons.leaderboard_outlined, color: Colors.white),
+                ),
+                title: const Text('Employee performance'),
+                subtitle: const Text(
+                  'Calls made and leads converted, ranked by employee',
+                ),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => _open(const LeaderboardScreen()),
+              ),
             ),
           ],
-        ),
+          const SizedBox(height: 28),
+          Text('Recent leads', style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 8),
+          Card(
+            child: leads.isEmpty
+                ? const Padding(
+                    padding: EdgeInsets.all(24),
+                    child: Center(child: Text('No leads assigned to you.')),
+                  )
+                : Column(
+                    children: leads
+                        .take(6)
+                        .map<Widget>(
+                          (lead) => ListTile(
+                            title: Text(lead.name),
+                            subtitle: Text('${lead.phone} - ${lead.site}'),
+                            trailing: Chip(label: Text(lead.status)),
+                          ),
+                        )
+                        .toList(),
+                  ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _nav(IconData icon, String label, VoidCallback onTap) => ListTile(
-    leading: Icon(icon),
-    title: Text(label),
-    onTap: () {
-      Navigator.pop(context);
-      onTap();
-    },
-  );
-  Widget _metric(String title, int value, IconData icon, {Color? color}) =>
-      SizedBox(
-        width: 170,
-        child: Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(icon, color: color),
-                const SizedBox(height: 10),
-                Text(
-                  '$value',
-                  style: TextStyle(
-                    fontSize: 26,
-                    fontWeight: FontWeight.bold,
-                    color: color,
-                  ),
+  Widget _metric(
+    String title,
+    int value,
+    IconData icon, {
+    Color? color,
+    VoidCallback? onTap,
+  }) => SizedBox(
+    width: 170,
+    child: Card(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(icon, color: color),
+              const SizedBox(height: 10),
+              Text(
+                '$value',
+                style: TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.bold,
+                  color: color,
                 ),
-                Text(title),
-              ],
-            ),
+              ),
+              Text(title),
+            ],
           ),
         ),
-      );
+      ),
+    ),
+  );
 }
