@@ -150,7 +150,7 @@ class _LeadListScreenState extends ConsumerState<LeadListScreen> {
         .map((lead) => lead.id as String?)
         .whereType<String>()
         .toList();
-    final anchorIndex = _anchorId == null ? -1 : ids.indexOf(_anchorId);
+    final anchorIndex = _anchorId == null ? -1 : ids.indexOf(_anchorId!);
     if (anchorIndex == -1) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
